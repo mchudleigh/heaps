@@ -80,6 +80,7 @@ class BigTexture {
 	public function new(id, size, bgColor = 0xFF8080FF ) {
 		this.id = id;
 		this.size = size;
+		this.loadCount = 0;
 		this.bgColor = bgColor;
 		space = new QuadTree(0,0,size,size);
 		tex = new h3d.mat.Texture(1, 1);
