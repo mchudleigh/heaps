@@ -16,6 +16,7 @@ class HMDModel extends MeshPrimitive {
 		this.data = data;
 		this.dataPosition = dataPos;
 		this.lib = lib;
+		this.curMaterial = -1;
 	}
 
 	override function triCount() {

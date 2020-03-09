@@ -6,7 +6,7 @@ class MultiMaterial extends Mesh {
 
 	public function new( prim, ?mats, ?parent ) {
 		super(prim, mats == null ? null : mats[0], parent);
-		this.materials = mats == null ? [material] : mats;
+		this.materials = (mats == null || mats.length == 0) ? [material] : mats;
 	}
 
 	override function getMeshMaterials() {

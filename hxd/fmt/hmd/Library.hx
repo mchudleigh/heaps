@@ -262,6 +262,10 @@ class Library {
 	function makeMaterial( model : Model, mid : Int, loadTexture : String -> h3d.mat.Texture ) {
 		var m = header.materials[mid];
 		var mat = h3d.mat.MaterialSetup.current.createMaterial();
+		if (m == null) {
+			mat.props = mat.getDefaultProps();
+			return mat;
+		}
 		mat.name = m.name;
 		if( m.diffuseTexture != null ) {
 			mat.texture = loadTexture(m.diffuseTexture);
@@ -348,7 +352,7 @@ class Library {
 					var skinData = makeSkin(m.skin);
 					skinData.primitive = prim;
 					obj = new h3d.scene.Skin(skinData, [for( mat in m.materials ) makeMaterial(m, mat, loadTexture)]);
-				} else if( m.materials.length == 1 )
+				} else if( m.materials.length <= 1 )
 					obj = new h3d.scene.Mesh(prim, makeMaterial(m, m.materials[0],loadTexture));
 				else
 					obj = new h3d.scene.MultiMaterial(prim, [for( mat in m.materials ) makeMaterial(m, mat, loadTexture)]);
