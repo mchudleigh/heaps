@@ -2,6 +2,7 @@ package hxd.res;
 import haxe.macro.Context;
 import haxe.macro.Expr;
 
+#if macro
 private typedef FileEntry = { e : Expr, t : ComplexType };
 
 typedef FileTreeData = {
@@ -375,3 +376,4 @@ class FileTree {
 	}
 
 }
+#end

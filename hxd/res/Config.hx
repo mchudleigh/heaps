@@ -56,9 +56,21 @@ class Config {
 		"css" => "less",
 	];
 
+	#if macro
 	static function defined( name : String ) {
 		return haxe.macro.Context.defined(name);
 	}
+	#else
+	static function defined(name: String) {
+		#if hl
+			return name == "hl";
+		#elseif js
+			return name == "js";
+		#else
+			return false;
+		#end
+	}
+	#end
 
 	static function init() {
 		var pf =

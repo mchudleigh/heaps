@@ -2,6 +2,7 @@ package hxd.impl;
 import haxe.macro.Context;
 using haxe.macro.Tools;
 
+#if macro
 class BitsBuilder {
 
 	public static function build() {
@@ -146,3 +147,4 @@ class BitsBuilder {
 	}
 
 }
+#end
