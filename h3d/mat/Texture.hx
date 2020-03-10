@@ -7,6 +7,9 @@ class Texture {
 	static var UID = 0;
 	static final PREVENT_AUTO_DISPOSE = 0x7FFFFFFF;
 
+	// A special string used to encode a single color texture into a "filename"
+	public static final COLOR_PREFIX="Color#";
+
 	/**
 		The default texture color format
 	**/
@@ -540,4 +543,33 @@ class Texture {
 		b.dispose();
 	}
 
+	public static function toColorString(color: Int): String {
+		var colBytes = haxe.io.Bytes.alloc(3);
+		var r = (color & (255 << 16)) >> 16;
+		var g = (color & (255 <<  8)) >>  8;
+		var b = color & 255;
+		colBytes.set(0,r);
+		colBytes.set(1,g);
+		colBytes.set(2,b);
+		return COLOR_PREFIX + colBytes.toHex().toUpperCase();
+	}
+
+	public static function isColorString(val: String): Bool {
+		if (!StringTools.startsWith(val, COLOR_PREFIX))
+			return false;
+
+		if (val.length != COLOR_PREFIX.length + 6)
+			return false;
+
+		// Check that rest is upper case hex
+		return ~/^[0-9A-F]*$/.match(val.substring(COLOR_PREFIX.length));
+
+	}
+
+	public static function fromColorString(val: String): Texture {
+		var colorStr = "0x" + val.substring(COLOR_PREFIX.length);
+		var colorVal = Std.parseInt(colorStr);
+		return Texture.fromColor(colorVal);
+
+	}
 }

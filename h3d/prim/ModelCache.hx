@@ -1,5 +1,7 @@
 package h3d.prim;
 
+import h3d.mat.Texture;
+
 typedef HideProps = {
 	var animations : haxe.DynamicAccess<{ events : Array<{ frame : Int, data : String }> }>;
 }
@@ -51,6 +53,10 @@ class ModelCache {
 	}
 
 	public function loadTexture( model : hxd.res.Model, texturePath ) : h3d.mat.Texture {
+		if(Texture.isColorString(texturePath)) {
+			return Texture.fromColorString(texturePath);
+		}
+
 		var fullPath = texturePath;
 		if(model != null)
 			fullPath = model.entry.path + "@" + fullPath;
