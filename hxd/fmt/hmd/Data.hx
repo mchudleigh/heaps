@@ -59,6 +59,11 @@ class Position {
 	public var sz : Float;
 	public function new() {
 	}
+	public function setIdent() {
+		 x = 0.0;  y = 0.0;  z = 0.0;
+		qx = 0.0; qy = 0.0; qz = 0.0;
+		sx = 1.0; sy = 1.0; sz = 1.0;
+	}
 
 	public inline function loadQuaternion( q : h3d.Quat ) {
 		q.x = qx;
@@ -88,6 +93,25 @@ class Position {
 		}
 		return m;
 	}
+	public static function fromMatrix(mat:h3d.Matrix) {
+		var ret = new Position();
+		ret.x = mat.tx;
+		ret.y = mat.ty;
+		ret.z = mat.tz;
+		var scale = mat.getScale();
+		ret.sx = scale.x;
+		ret.sy = scale.y;
+		ret.sz = scale.z;
+		var m = mat.clone();
+		m.prependScale(1.0/scale.x, 1.0/scale.y, 1.0/scale.z);
+		var qrot = new h3d.Quat();
+		qrot.initRotateMatrix(m);
+		ret.qx = qrot.x;
+		ret.qy = qrot.y;
+		ret.qz = qrot.z;
+		return ret;
+	}
+
 	static var QTMP = new h3d.Quat();
 }
 
