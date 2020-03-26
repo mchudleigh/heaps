@@ -15,6 +15,7 @@ class Convert {
 
 	public var srcPath : String;
 	public var dstPath : String;
+	public var baseDir: String;
 	public var originalFilename : String;
 	public var srcBytes : haxe.io.Bytes;
 
