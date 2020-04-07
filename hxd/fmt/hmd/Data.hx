@@ -106,6 +106,12 @@ class Position {
 		m.prependScale(1.0/scale.x, 1.0/scale.y, 1.0/scale.z);
 		var qrot = new h3d.Quat();
 		qrot.initRotateMatrix(m);
+		if (qrot.w < 0) {
+			qrot.x *= -1;
+			qrot.y *= -1;
+			qrot.z *= -1;
+			qrot.w *= -1;
+		}
 		ret.qx = qrot.x;
 		ret.qy = qrot.y;
 		ret.qz = qrot.z;
