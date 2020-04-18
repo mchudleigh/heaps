@@ -369,6 +369,12 @@ class Library {
 			obj.name = m.name;
 			obj.defaultTransform = m.position.toMatrix();
 			objs.push(obj);
+		}
+
+		// Set parents
+		for (i in 0...header.models.length) {
+			var m = header.models[i];
+			var obj = objs[i];
 			var p = objs[m.parent];
 			if( p != null ) p.addChild(obj);
 		}
@@ -402,8 +408,11 @@ class Library {
 		l.loop = a.loop;
 		if( a.events != null ) l.setEvents(a.events);
 		l.resourcePath = resource.entry.path;
-		cachedAnimations.set(a.name, l);
-		if( name == null ) cachedAnimations.set("", l);
+		if( name == null )
+			cachedAnimations.set("", l)
+		else
+			cachedAnimations.set(a.name, l);
+
 		return l;
 	}
 
