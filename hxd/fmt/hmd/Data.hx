@@ -218,6 +218,8 @@ class AnimationObject {
 	public var flags : haxe.EnumFlags<AnimationFlag>;
 	public var props : Array<String>;
 	public function new() {
+		flags = new haxe.EnumFlags();
+		props = [];
 	}
 	public function getStride() {
 		var stride = 0;
