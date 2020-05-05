@@ -68,6 +68,7 @@ class FileConverter {
 			"fs.convert" : {
 				"fbx"  : { "convert" : "hmd", "priority" : -1 },
 				"gltf" : { "convert" : "hmd", "priority" : -1 },
+				"obj" : { "convert" : "hmd", "priority" : -1 },
 				"fnt"  : { "convert" : "bfnt", "priority" : -1 }
 			}
 		};

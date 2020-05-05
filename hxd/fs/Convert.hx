@@ -249,6 +249,49 @@ class ConvertGLTF2HMD extends hxd.fs.Convert {
 
 }
 
+class ConvertOBJ2HMD extends hxd.fs.Convert {
+	public function new() {
+		super("obj", "hmd");
+	}
+
+	override function convert() {
+
+		var splitPath = srcPath.split("/");
+		var name = splitPath[splitPath.length - 1];
+
+		final obj =
+		try {
+			hxd.fmt.obj.ObjParser.parse(name, srcBytes);
+		}
+		catch( e : Dynamic ) throw Std.string(e) + " in " + srcPath;
+
+		var path = srcPath.substr(0, srcPath.length-name.length);
+
+		var matMap = new Map();
+		try {
+			for(libFile in obj.matlibs) {
+				var mtlData = sys.io.File.getBytes(path + libFile);
+				var mats = hxd.fmt.obj.ObjParser.MTLParser.parse(mtlData);
+				for (name => mat in mats) {
+					matMap[name] = mat;
+				}
+			}
+		}
+		catch( e : Dynamic ) throw Std.string(e) + " in " + srcPath;
+
+		//trace(srcPath);
+		var hmdout = new hxd.fmt.obj.ObjHMDOut(srcPath);
+		hmdout.load(obj, matMap);
+		var hmd = hmdout.toHMD();
+		var out = new haxe.io.BytesOutput();
+		new hxd.fmt.hmd.Writer(out).write(hmd);
+		save(out.getBytes());
+	}
+
+	static var _ = hxd.fs.Convert.register(new ConvertOBJ2HMD());
+
+}
+
 class CompressIMG extends Convert {
 
 	override function convert() {
