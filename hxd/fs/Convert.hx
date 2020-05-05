@@ -262,7 +262,7 @@ class ConvertOBJ2HMD extends hxd.fs.Convert {
 
 		final obj =
 		try {
-			hxd.fmt.obj.ObjParser.parse(name, srcBytes);
+			hxd.fmt.obj.Parser.parse(name, srcBytes);
 		}
 		catch( e : Dynamic ) throw Std.string(e) + " in " + srcPath;
 
@@ -272,7 +272,7 @@ class ConvertOBJ2HMD extends hxd.fs.Convert {
 		try {
 			for(libFile in obj.matlibs) {
 				var mtlData = sys.io.File.getBytes(path + libFile);
-				var mats = hxd.fmt.obj.ObjParser.MTLParser.parse(mtlData);
+				var mats = hxd.fmt.obj.Parser.MTLParser.parse(mtlData);
 				for (name => mat in mats) {
 					matMap[name] = mat;
 				}
@@ -281,7 +281,7 @@ class ConvertOBJ2HMD extends hxd.fs.Convert {
 		catch( e : Dynamic ) throw Std.string(e) + " in " + srcPath;
 
 		//trace(srcPath);
-		var hmdout = new hxd.fmt.obj.ObjHMDOut(srcPath);
+		var hmdout = new hxd.fmt.obj.HMDOut(srcPath);
 		hmdout.load(obj, matMap);
 		var hmd = hmdout.toHMD();
 		var out = new haxe.io.BytesOutput();
