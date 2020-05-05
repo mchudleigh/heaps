@@ -154,7 +154,7 @@ private typedef Animation = {
 	name:String,
 }
 
-private typedef GLTFData = {
+private typedef GLTFSrcData = {
 	asset:Asset,
 	accessors:Array<Accessor>,
 	buffers:Array<Buffer>,
@@ -265,33 +265,40 @@ class AnimationData {
 	public function new() {}
 }
 
+class GLTFData {
+	public var bufferData: Array<haxe.io.Bytes> = [];
+	public var accData: Array<BuffAccess> = [];
+	public var meshes: Array<MeshData> = [];
+	public var mats: Array<MaterialData> = [];
+	public var rootNodes: Array<NodeData> = [];
+	public var nodes: Array<NodeData> = []; // The data for the nodes in the same order as the source
+	public var skins: Array<SkinData> = [];
+	public var animations: Array<AnimationData> = [];
+	public function new() {}
+}
+
 class GLTFParser {
-	public var data:GLTFData;
+	public var srcData:GLTFSrcData;
 	public var name:String;
 	public var localDir:String;
 	public var relDir:String;
 
 	final SAMPLE_RATE = 60.0;
 
-	public var bufferData:Array<haxe.io.Bytes> = [];
-	public var accData:Array<BuffAccess> = [];
-	public var meshes:Array<MeshData> = [];
-	public var mats:Array<MaterialData> = [];
-	public var rootNodes:Array<NodeData> = [];
-	public var nodes:Array<NodeData> = []; // The data for the nodes in the same order as the source
-	public var skins:Array<SkinData> = [];
-	public var animations:Array<AnimationData> = [];
+	public var outData: GLTFData;
 
 	public function new(name, localDir, relDir, file:haxe.io.Bytes) {
 		this.name = name;
 		this.localDir = localDir;
 		this.relDir = relDir;
 
-		this.data = Json.parse(file.getString(0, file.length));
+		this.srcData = Json.parse(file.getString(0, file.length));
+
+		this.outData = new GLTFData();
 
 		// Fixup node names before building the skin
-		for (nodeInd in 0...data.nodes.length) {
-			var node = data.nodes[nodeInd];
+		for (nodeInd in 0...srcData.nodes.length) {
+			var node = srcData.nodes[nodeInd];
 			if (node.name == null) {
 				node.name = 'node_$nodeInd';
 			}
@@ -313,23 +320,23 @@ class GLTFParser {
 
 	function loadBuffers() {
 		// Read all files
-		var buffers = data.buffers;
+		var buffers = srcData.buffers;
 		for (buf in buffers) {
 			// TODO: proper URI handling
 			var buffBytes = sys.io.File.getBytes(localDir + buf.uri);
 			if (buf.byteLength < buffBytes.length) {
 				throw 'Buffer: ${buf.uri} is too small. Expected: ${buf.byteLength} bytes';
 			}
-			this.bufferData.push(buffBytes);
+			outData.bufferData.push(buffBytes);
 		}
 		// Load the accessors
-		for (acc in data.accessors) {
-			accData.push(fillBuffAccess(acc));
+		for (acc in srcData.accessors) {
+			outData.accData.push(fillBuffAccess(acc));
 		}
 	}
 
 	function checkAccessor(accInd:Int, ?expComp, ?expType) {
-		var accessor = data.accessors[accInd];
+		var accessor = srcData.accessors[accInd];
 		if (expComp != null)
 			Debug.assert(accessor.componentType == expComp);
 		if (expType != null)
@@ -337,7 +344,7 @@ class GLTFParser {
 	}
 
 	function fillBuffAccess(accessor:Accessor):BuffAccess {
-		var bufferView = data.bufferViews[accessor.bufferView];
+		var bufferView = srcData.bufferViews[accessor.bufferView];
 
 		var compSize = componentSize(accessor.componentType);
 		var numComps = numComponents(accessor.type);
@@ -372,7 +379,7 @@ class GLTFParser {
 	}
 
 	function loadGeometry() {
-		for (mesh in data.meshes) {
+		for (mesh in srcData.meshes) {
 			var meshData = new MeshData();
 			meshData.name = mesh.name;
 			for (prim in mesh.primitives) {
@@ -380,7 +387,7 @@ class GLTFParser {
 				primData.accList = [-1, -1, -1, -1, -1, -1];
 				primData.matInd = prim.material;
 				var posAcc = prim.attributes.get(POSITION);
-				var vertCount = data.accessors[posAcc].count;
+				var vertCount = srcData.accessors[posAcc].count;
 				primData.pos = posAcc;
 				checkAccessor(posAcc, FLOAT, VEC3);
 				primData.accList[POS] = posAcc;
@@ -389,28 +396,28 @@ class GLTFParser {
 					primData.norm = norAcc;
 					checkAccessor(norAcc, FLOAT, VEC3);
 					primData.accList[NOR] = norAcc;
-					Debug.assert(data.accessors[norAcc].count >= vertCount);
+					Debug.assert(srcData.accessors[norAcc].count >= vertCount);
 				}
 				var texAcc = prim.attributes.get(TEXCOORD_0);
 				if (texAcc != null) {
 					primData.texCoord = texAcc;
 					checkAccessor(texAcc, FLOAT, VEC2);
 					primData.accList[TEX] = texAcc;
-					Debug.assert(data.accessors[texAcc].count >= vertCount);
+					Debug.assert(srcData.accessors[texAcc].count >= vertCount);
 				}
 				var jointsAcc = prim.attributes.get(JOINTS_0);
 				if (jointsAcc != null) {
 					primData.joints = jointsAcc;
 					checkAccessor(jointsAcc, UNSIGNED_SHORT, VEC4);
 					primData.accList[JOINTS] = jointsAcc;
-					Debug.assert(data.accessors[jointsAcc].count >= vertCount);
+					Debug.assert(srcData.accessors[jointsAcc].count >= vertCount);
 				}
 				var weightsAcc = prim.attributes.get(WEIGHTS_0);
 				if (weightsAcc != null) {
 					primData.weights = weightsAcc;
 					checkAccessor(weightsAcc, FLOAT, VEC4);
 					primData.accList[WEIGHTS] = weightsAcc;
-					Debug.assert(data.accessors[weightsAcc].count >= vertCount);
+					Debug.assert(srcData.accessors[weightsAcc].count >= vertCount);
 				}
 				// Assert we have both or neither of joints and weights
 				Debug.assert((weightsAcc == null) == (jointsAcc == null));
@@ -423,13 +430,13 @@ class GLTFParser {
 
 				meshData.primitives.push(primData);
 			}
-			meshes.push(meshData);
+			outData.meshes.push(meshData);
 		}
 	}
 
 	function loadSkins() {
-		if (data.skins == null) return;
-		for (skin in data.skins) {
+		if (srcData.skins == null) return;
+		for (skin in srcData.skins) {
 			var skinData = new SkinData();
 			skinData.invBindMatAcc = skin.inverseBindMatrices;
 			checkAccessor(skinData.invBindMatAcc, FLOAT, MAT4);
@@ -440,19 +447,19 @@ class GLTFParser {
 
 			for (i in 0...skinData.joints.length) {
 				var nodeId = skinData.joints[i];
-				var nodeName = data.nodes[nodeId].name;
+				var nodeName = srcData.nodes[nodeId].name;
 				Debug.assert(nodeName != null);
 				if (skinData.jointNameMap[nodeName] != null) {
 					throw 'Skin node name is used twice: $nodeName';
 				}
 				skinData.jointNameMap[nodeName] = i;
 			}
-			skins.push(skinData);
+			outData.skins.push(skinData);
 		}
 	}
 
 	function loadMaterials() {
-		for (mat in data.materials) {
+		for (mat in srcData.materials) {
 			var matData = new MaterialData();
 			matData.name = mat.name;
 			var metalRough = mat.pbrMetallicRoughness;
@@ -468,15 +475,15 @@ class GLTFParser {
 				var texCoord = bc.texCoord != null ? bc.texCoord : 0;
 				Debug.assert(texCoord == 0, "Only texcoord 0 supported for now");
 
-				var tex = data.textures[texInd];
+				var tex = srcData.textures[texInd];
 				var imageInd = tex.source;
-				var image = data.images[imageInd];
+				var image = srcData.images[imageInd];
 
 				Debug.assert(image.uri != null);
 				matData.colorTex = image.uri;
 			}
 
-			mats.push(matData);
+			outData.mats.push(matData);
 		}
 	}
 
@@ -522,15 +529,15 @@ class GLTFParser {
 	}
 
 	function loadAnimations() {
-		if (data.animations == null) return;
-		for (anim in data.animations) {
+		if (srcData.animations == null) return;
+		for (anim in srcData.animations) {
 			// Figure out start and end times
 			var startTime = Math.POSITIVE_INFINITY;
 			var endTime = Math.NEGATIVE_INFINITY;
 			for (chan in anim.channels) {
 				var sampId = chan.sampler;
 				var samp = anim.samplers[sampId];
-				var inAcc = data.accessors[samp.input];
+				var inAcc = srcData.accessors[samp.input];
 				if (inAcc.max != null) {
 					var end = inAcc.max[0];
 					endTime = Math.max(endTime, end);
@@ -545,8 +552,8 @@ class GLTFParser {
 
 			function sampleCurve(sampId, numComps, isQuat) {
 				var samp = anim.samplers[sampId];
-				var inAcc = accData[samp.input];
-				var outAcc = accData[samp.output];
+				var inAcc = outData.accData[samp.input];
+				var outAcc = outData.accData[samp.output];
 				Debug.assert(outAcc.numComps == numComps);
 				var values = new Array();
 				values.resize(numFrames*outAcc.numComps);
@@ -617,7 +624,7 @@ class GLTFParser {
 
 				var curve = new AnimationCurve();
 				curve.targetNode = nodeId;
-				curve.targetName = data.nodes[nodeId].name;
+				curve.targetName = srcData.nodes[nodeId].name;
 
 				if (numTrans != 0) {
 					var transChan = Lambda.filter(channels, transPred)[0];
@@ -642,11 +649,11 @@ class GLTFParser {
 			animData.length = length;
 			animData.numFrames = numFrames;
 			animData.name = anim.name;
-			animations.push(animData);
+			outData.animations.push(animData);
 		}
 
 		// Mark all nodes as animated if it or any of its parents are animated
-		for (node in nodes) {
+		for (node in outData.nodes) {
 			var n = node;
 			while (n != null) {
 				if (n.animCurves.length != 0) {
@@ -660,9 +667,9 @@ class GLTFParser {
 
 	// Fill the data for this node, and recurse into its children
 	function buildNode(curNode:NodeData, nodeInd:Int) {
-		nodes[nodeInd] = curNode;
+		outData.nodes[nodeInd] = curNode;
 
-		var n = data.nodes[nodeInd];
+		var n = srcData.nodes[nodeInd];
 		curNode.nodeInd = nodeInd;
 		curNode.name = n.name;
 
@@ -703,7 +710,7 @@ class GLTFParser {
 		}
 		if (n.children != null) {
 			for (cInd in n.children) {
-				var c = data.nodes[cInd];
+				var c = srcData.nodes[cInd];
 				var child = new NodeData();
 				curNode.children.push(child);
 				child.parent = curNode;
@@ -720,23 +727,23 @@ class GLTFParser {
 	}
 
 	function loadNodeTree() {
-		nodes.resize(data.nodes.length);
+		outData.nodes.resize(srcData.nodes.length);
 
-		for (scene in data.scenes) {
+		for (scene in srcData.scenes) {
 			for (nodeInd in scene.nodes) {
 				var node = new NodeData();
-				rootNodes.push(node);
+				outData.rootNodes.push(node);
 				buildNode(node, nodeInd);
 			}
 		}
 
 		// Mark all nodes listed in a skin as a joint
-		for (skin in skins) {
+		for (skin in outData.skins) {
 			for (nodeInd in skin.joints) {
-				nodes[nodeInd].isJoint = true;
+				outData.nodes[nodeInd].isJoint = true;
 			}
 		}
-		for (node in nodes) {
+		for (node in outData.nodes) {
 			// For now do not allow joints to have meshes
 			Debug.assert(!node.isJoint || !node.hasChildMesh);
 			if (node.isJoint) {
@@ -789,14 +796,14 @@ class GLTFParser {
 
 	function buildSkin(skin:SkinData, nodeName): hxd.fmt.hmd.Data.Skin {
 		var ret = new hxd.fmt.hmd.Data.Skin();
-		ret.name = (skin.skeleton != null ? nodes[skin.skeleton].name : nodeName) + "_skin";
+		ret.name = (skin.skeleton != null ? outData.nodes[skin.skeleton].name : nodeName) + "_skin";
 		ret.props = null;
 		ret.split = null;
 		ret.joints = [];
 		for (i in 0...skin.joints.length) {
 			var jInd = skin.joints[i];
 			var sj = new hxd.fmt.hmd.Data.SkinJoint();
-			var node = nodes[jInd];
+			var node = outData.nodes[jInd];
 			sj.name = node.name;
 			sj.props = null;
 			sj.position = nodeToPos(node);
@@ -804,7 +811,7 @@ class GLTFParser {
 			sj.bind = i;
 
 			// Get invBindMatrix
-			var invBindMat = getMatrix(accData[skin.invBindMatAcc], i);
+			var invBindMat = getMatrix(outData.accData[skin.invBindMatAcc], i);
 			sj.transpos = Position.fromMatrix(invBindMat);
 			// Ensure this matrix converted to a 'Position' correctly
 			var testMat = sj.transpos.toMatrix();
@@ -826,7 +833,7 @@ class GLTFParser {
 		// Emit unique combinations of accessors
 		// as a single buffer to save data
 		var geoMap = new SeqIntMap();
-		for (mesh in meshes) {
+		for (mesh in outData.meshes) {
 			for (prim in mesh.primitives) {
 				geoMap.add(prim.accList);
 			}
@@ -856,17 +863,17 @@ class GLTFParser {
 
 			Debug.assert(hasJoints == hasWeights);
 
-			var posAcc = accData[accList[POS]];
+			var posAcc = outData.accData[accList[POS]];
 
 			var genNormals = null;
 			if (!hasNorm) {
 				genNormals = generateNormals(posAcc);
 			}
 
-			var norAcc = accData[accList[NOR]];
-			var texAcc = accData[accList[TEX]];
-			var jointAcc = hasJoints ? accData[accList[JOINTS]] : null;
-			var weightAcc = hasWeights ? accData[accList[WEIGHTS]] : null;
+			var norAcc = outData.accData[accList[NOR]];
+			var texAcc = outData.accData[accList[TEX]];
+			var jointAcc = hasJoints ? outData.accData[accList[JOINTS]] : null;
+			var weightAcc = hasWeights ? outData.accData[accList[WEIGHTS]] : null;
 
 			for (i in 0...posAcc.count) {
 				// Position data
@@ -933,7 +940,7 @@ class GLTFParser {
 		// Find the unique combination of accessor lists in each
 		// mesh. This will map on to the HMD geometry concept
 		var meshAccLists:Array<Array<Int>> = [];
-		for (mesh in meshes) {
+		for (mesh in outData.meshes) {
 			var accs = Lambda.map(mesh.primitives, (prim) -> geoMap.add(prim.accList));
 			accs.sort((a, b) -> a - b);
 			var uniqueAccs = [];
@@ -953,14 +960,14 @@ class GLTFParser {
 		// Generate a geometry for each mesh-accessor
 		// Also retain the materials used
 		var meshToGeoMap:Array<Array<Int>> = [];
-		for (meshInd in 0...meshes.length) {
+		for (meshInd in 0...outData.meshes.length) {
 			var meshGeoList = [];
 			meshToGeoMap.push(meshGeoList);
 
 			var accList = meshAccLists[meshInd];
 			for (accSet in accList) {
 				var accessors = geoMap.getList(accSet);
-				var posAcc = accData[accessors[0]];
+				var posAcc = outData.accData[accessors[0]];
 
 				var geo = new Geometry();
 				var geoMats = [];
@@ -985,7 +992,7 @@ class GLTFParser {
 					geo.vertexFormat.push(new GeometryFormat("weights", DVec4));
 				}
 
-				var mesh = meshes[meshInd];
+				var mesh = outData.meshes[meshInd];
 				var indexList = [];
 				// Iterate the primitives and add indices for this geo
 				for (prim in mesh.primitives) {
@@ -1003,7 +1010,7 @@ class GLTFParser {
 					// Fill the index list
 					if (prim.indices != null) {
 						var iList = indexList[matInd];
-						var indexAcc = accData[prim.indices];
+						var indexAcc = outData.accData[prim.indices];
 						for (i in 0...indexAcc.count) {
 							iList.push(getIndex(indexAcc, i));
 						}
@@ -1024,7 +1031,7 @@ class GLTFParser {
 		}
 
 		var materials = [];
-		for (mat in mats) {
+		for (mat in outData.mats) {
 			var hMat = new hxd.fmt.hmd.Material();
 			hMat.name = mat.name;
 
@@ -1055,7 +1062,7 @@ class GLTFParser {
 		models[0] = rootModel;
 
 		var nextOutID = 1;
-		for (n in nodes) {
+		for (n in outData.nodes) {
 			// Mark the slot the node will be put into
 			// while skipping over joints
 			if (!n.isJoint) {
@@ -1063,9 +1070,9 @@ class GLTFParser {
 			}
 		}
 
-		for (i in 0...nodes.length) {
+		for (i in 0...outData.nodes.length) {
 			// Sanity check
-			var node = nodes[i];
+			var node = outData.nodes[i];
 			Debug.assert(node.nodeInd == i);
 			if (node.isJoint)
 				continue;
@@ -1079,7 +1086,7 @@ class GLTFParser {
 			model.skin = null;
 			if (node.mesh != null) {
 				if (node.skin != null) {
-					model.skin = buildSkin(skins[node.skin], node.name);
+					model.skin = buildSkin(outData.skins[node.skin], node.name);
 					//model.skin = null;
 				}
 
@@ -1094,7 +1101,7 @@ class GLTFParser {
 					// We need to generate a model per primitive
 					for (geoInd in geoList) {
 						var primModel = new Model();
-						primModel.name = meshes[node.mesh].name;
+						primModel.name = outData.meshes[node.mesh].name;
 						primModel.props = null;
 						primModel.parent = node.outputID;
 						primModel.position = identPos;
@@ -1115,7 +1122,7 @@ class GLTFParser {
 
 		// Populate animation information and fill data
 		var anims = [];
-		for (animData in animations) {
+		for (animData in outData.animations) {
 			var anim = new hxd.fmt.hmd.Data.Animation();
 			anim.name = animData.name;
 			anim.props = null;
@@ -1199,7 +1206,7 @@ class GLTFParser {
 	// retrieve the float value from an accessor for a specified
 	// entry (eg: vertex) and component (eg: x)
 	inline function getFloat(buffAcc:BuffAccess, entry:Int, comp:Int):Float {
-		var buff = bufferData[buffAcc.bufferInd];
+		var buff = outData.bufferData[buffAcc.bufferInd];
 		Debug.assert(buffAcc.compSize == 4);
 		var pos = buffAcc.offset + (entry * buffAcc.stride) + comp * 4;
 		Debug.assert(pos < buffAcc.maxPos);
@@ -1207,7 +1214,7 @@ class GLTFParser {
 	}
 
 	inline function getUShort(buffAcc:BuffAccess, entry:Int, comp:Int):Int {
-		var buff = bufferData[buffAcc.bufferInd];
+		var buff = outData.bufferData[buffAcc.bufferInd];
 		Debug.assert(buffAcc.compSize == 2);
 		var pos = buffAcc.offset + (entry * buffAcc.stride) + comp * 2;
 		Debug.assert(pos < buffAcc.maxPos);
@@ -1244,7 +1251,7 @@ class GLTFParser {
 
 	// retrieve the scalar int from a buffer access
 	inline function getIndex(buffAcc:BuffAccess, entry:Int):Int {
-		var buff = bufferData[buffAcc.bufferInd];
+		var buff = outData.bufferData[buffAcc.bufferInd];
 		var pos = buffAcc.offset + (entry * buffAcc.stride);
 		Debug.assert(pos < buffAcc.maxPos);
 		switch (buffAcc.compSize) {
