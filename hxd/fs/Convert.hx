@@ -217,6 +217,37 @@ class ConvertFNT2BFNT extends Convert {
 
 }
 
+class ConvertGLTF2HMD extends hxd.fs.Convert {
+	public function new() {
+		super("gltf", "hmd");
+	}
+
+	override function convert() {
+
+		var splitPath = srcPath.split("/");
+		var name = splitPath[splitPath.length - 1];
+
+		var localPath = srcPath.substr(0, srcPath.length-name.length);
+
+		var relPath = "";
+		// Find the path relative to the assets dir
+		if (localPath.indexOf(baseDir) == 0) {
+			relPath = localPath.substr(baseDir.length);
+		}
+		try {
+			final gltf = new hxd.fmt.gltf.GLTFParser(name, localPath, relPath, srcBytes);
+			var hmd = gltf.toHMD();
+			var out = new haxe.io.BytesOutput();
+			new hxd.fmt.hmd.Writer(out).write(hmd);
+			save(out.getBytes());
+		}
+		catch( e : Dynamic ) throw Std.string(e) + " in " + srcPath;
+
+	}
+
+	static var _ = hxd.fs.Convert.register(new ConvertGLTF2HMD());
+
+}
 
 class CompressIMG extends Convert {
 
