@@ -2,6 +2,15 @@ package hxd.fmt.gltf;
 
 import h3d.Quat;
 
+enum abstract AccessorInd(Int) to Int {
+	var POS = 0;
+	var NOR;
+	var TEX;
+	var JOINTS;
+	var WEIGHTS;
+	var INDICES;
+}
+
 class MeshData {
 	public var primitives:Array<PrimitiveData> = [];
 	public var name:String;
@@ -100,6 +109,8 @@ class AnimationData {
 }
 
 class GLTFData {
+	public static final SAMPLE_RATE = 60.0;
+
 	public var bufferData: Array<haxe.io.Bytes> = [];
 	public var accData: Array<BuffAccess> = [];
 	public var meshes: Array<MeshData> = [];

@@ -236,7 +236,8 @@ class ConvertGLTF2HMD extends hxd.fs.Convert {
 		}
 		try {
 			final gltf = new hxd.fmt.gltf.GLTFParser(name, localPath, relPath, srcBytes);
-			var hmd = gltf.toHMD();
+			final hmdOut = new hxd.fmt.gltf.HMDOut(name, relPath, gltf.getData());
+			var hmd = hmdOut.toHMD();
 			var out = new haxe.io.BytesOutput();
 			new hxd.fmt.hmd.Writer(out).write(hmd);
 			save(out.getBytes());
