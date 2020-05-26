@@ -246,6 +246,9 @@ class HullBuilder {
 	function facesToEdgeLoop(faces: Array<Face>) : Array<Edge> {
 		// Iterate all dead face edges, adding them to a map
 		// but removing edges that are traversed backwards
+
+		// TOOD: ensure we do not have hash collsions here
+		// (they are quite unlikely though...)
 		var edges: Map<Int, Edge> = [];
 		for (f in faces) {
 			for (ei in 0...3) {
@@ -302,9 +305,8 @@ class HullBuilder {
 
 	public static function buildHull(points: Array<Point>, maxFaces = 100) : ConvexHull {
 
-		// We can't accept more than roughly ten thousand points for algorithmic
-		// correctness and general sanity
-		Debug.assert(points.length < 10000);
+		// TODO: find a reasonable limit, taking hash collision into account
+		//Debug.assert(points.length < 10000);
 		var builder = new HullBuilder(points, maxFaces);
 
 		return builder.finalHull;

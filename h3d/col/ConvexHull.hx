@@ -12,6 +12,7 @@ class ConvexHull {
 	// faces is a flat array of 3 int tuples, indices into points
 	// A valid face list must be closed and have all faces oriented facing
 	// outward righthanded
+	// Conveniently, this is also basically the index array for rendering triangles
 	public var faces: Array<Int>;
 
 	// Derived Data --------
@@ -267,6 +268,18 @@ class ConvexHull {
 			}
 		}
 		return -1;
+	}
+
+	public function toPolygon(): h3d.prim.Polygon {
+		var primPoints = [];
+		for (v in points) {
+			primPoints.push(v.toPoint());
+		}
+		var primIndices = new hxd.IndexBuffer();
+		for (f in faces) {
+			primIndices.push(f);
+		}
+		return new h3d.prim.Polygon(primPoints, primIndices);
 	}
 
 	public static function makeCubeHull(): ConvexHull {

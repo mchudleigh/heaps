@@ -382,6 +382,42 @@ class Library {
 	}
 	#end
 
+	// Get an unsorted list of all points in the mesh's rest position
+	// This is mainly used for collision
+	public function getStaticPoints(): Array<h3d.col.Point> {
+		var points = [];
+		var vec = new h3d.Vector();
+		for( m in header.models ) {
+			if (m.geometry < 0) continue;
+			var trans = new h3d.Matrix();
+			trans.identity();
+			var curr = m;
+			while(curr != null) {
+				trans.multiply(trans, curr.position.toMatrix());
+				curr = header.models[curr.parent];
+			}
+			var geo = header.geometries[m.geometry];
+			var pos = getBuffers(geo, [new hxd.fmt.hmd.Data.GeometryFormat("position", DVec3)]);
+
+			for( i in 0...geo.vertexCount ) {
+				vec.x = pos.vertexes[i * 3];
+				vec.y = pos.vertexes[i * 3 + 1];
+				vec.z = pos.vertexes[i * 3 + 2];
+				vec.transform(trans);
+				points.push(new h3d.col.Point(vec.x, vec.y, vec.z));
+			}
+		}
+		return points;
+	}
+
+	public function makeHullVis(scene, maxFaces = 100) {
+		// Make a visualization of the convex hull
+		var points = getStaticPoints();
+		var hull = h3d.col.HullBuilder.buildHull(points, maxFaces);
+		var mesh = h3d.prim.HullDebug.getHullMesh(hull, scene);
+		return mesh;
+	}
+
 	public function loadAnimation( ?name : String ) : h3d.anim.Animation {
 
 		var a = cachedAnimations.get(name == null ? "" : name);
