@@ -20,7 +20,7 @@ class ConvexHull {
 	// A flat 3 tuple for each face of the indices of the connected faces
 	public var faceConnections: Array<Int> = new Array();
 
-	public var faceNormals: Array<Vector> = new Array();
+	public var facePlanes: Array<Plane> = new Array();
 
 	// A list per point of connected points
 	public var pointConnections: Array<Array<Int>> = new Array();
@@ -47,7 +47,7 @@ class ConvexHull {
 		calcPointFaces();
 		calcEdges();
 		calcFaceConnections();
-		calcNormals();
+		calcPlanes();
 		calcSuppPoints();
 
 		if (VALIDATE)
@@ -114,16 +114,14 @@ class ConvexHull {
 			}
 		}
 	}
-	function calcNormals() {
+	function calcPlanes() {
 		for (f in 0...Std.int(faces.length/3)) {
 			var p0 = points[facePoint(f,0)];
 			var p1 = points[facePoint(f,1)];
 			var p2 = points[facePoint(f,2)];
-			var e0 = p1.sub(p0);
-			var e1 = p2.sub(p1);
-			var norm = e0.cross(e1);
-			norm.normalize();
-			faceNormals.push(norm);
+			var plane = Plane.fromPoints(p0.toPoint(), p1.toPoint(), p2.toPoint());
+			plane.normalize();
+			facePlanes.push(plane);
 		}
 	}
 
@@ -234,7 +232,20 @@ class ConvexHull {
 			}
 		}
 
-		// Check that every edge has 1 face (edges are directional)
+		// Check that every face can not "see" the third point
+		// of each connected face (convexity check)
+		for (f in 0...Std.int(faces.length/3)) {
+			for (ei in 0...3) {
+				var p0 = facePointMod(f, ei+0);
+				var p1 = facePointMod(f, ei+1);
+				var connFace = faceConnections[f*3+ei];
+				var otherPoint = finishFace(connFace, p1, p0);
+				Debug.assert(otherPoint != -1);
+				var dist = facePlanes[f].distance(points[otherPoint].toPoint());
+				Debug.assert(dist < 0.000001); // Slight threshold
+
+			}
+		}
 	}
 
 	// Utility to get the pInd point for face fInd
