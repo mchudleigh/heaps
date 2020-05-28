@@ -249,6 +249,15 @@ class ConvexHull {
 		}
 	}
 
+	public function containsPoint(p: Point): Bool {
+		for (plane in facePlanes) {
+			if (plane.distance(p) > 0) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 	// Utility to get the pInd point for face fInd
 	inline function facePoint(fInd: Int, pInd: Int) {
 		return faces[fInd*3+pInd];
