@@ -1,0 +1,13 @@
+-cp test
+-cp .
+
+-lib hxbit
+-lib format
+-lib utest
+--each
+
+--next
+-debug
+-hl target/test/testAll.hl
+-main HeapsTestAll
+

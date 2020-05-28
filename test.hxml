@@ -1,0 +1,15 @@
+-cp test
+-cp src
+
+-lib hxbit
+-lib format
+-lib utest
+-lib seedyrng
+--each
+
+--next
+-debug
+-js target/test/testAll.js
+-main HeapsTestAll
+
+-cmd node ./target/test/testAll.js
