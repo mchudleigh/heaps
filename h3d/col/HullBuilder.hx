@@ -1,5 +1,6 @@
 package h3d.col;
 
+import hds.BinaryHeap;
 import hxd.Debug;
 
 class Edge {
@@ -16,6 +17,7 @@ class Face {
 	public var points: Array<Point>; // Pointer to parent points array
 	public var maxDist: Float;
 	public var maxPoint: Int;
+	public var dead:Bool = false;
 
 	public var edges: Array<Edge>;
 
@@ -69,6 +71,8 @@ class HullBuilder {
 	static final THRESH = 0.0000001;
 	var points: Array<Point>;
 	var faces: Array<Face>;
+	var faceHeap: BinaryHeap;
+	var numLiveFaces = 0;
 
 	var maxFaces: Int;
 
@@ -77,6 +81,7 @@ class HullBuilder {
 	function new(ps: Array<Point>, maxFaces) {
 		this.points = ps;
 		this.maxFaces = maxFaces;
+		faceHeap = new BinaryHeap();
 
 		initialFaces();
 		mainLoop();
@@ -151,42 +156,62 @@ class HullBuilder {
 				f1.addPoint(pi);
 			}
 		}
-		faces = [f0, f1];
+		faces = [];
+		addFace(f0);
+		addFace(f1);
+	}
+
+	function addFace(f: Face) {
+		var ind = faceHeap.insert(-f.maxDist);
+		faces[ind] = f;
+		numLiveFaces++;
 	}
 
 	function mainLoop() {
 		while(true) {
-			if (faces.length >= maxFaces) return;
+			if (numLiveFaces >= maxFaces) return;
 
-			var bestFace: Face = null;
-			var bestDist = Math.NEGATIVE_INFINITY;
-			for (f in faces) {
-				if (f.hasPoints()) {
-					if (f.maxDist > bestDist) {
-						bestDist = f.maxDist;
-						bestFace = f;
-					}
-				}
+			var nextInd = faceHeap.getLow();
+			var nextFace = faces[nextInd];
+			// Skip over dead faces
+			while (nextFace.dead) {
+				// Pop that face
+				faceHeap.popLow();
+				faces[nextInd] = null;
+				nextInd = faceHeap.getLow();
+				nextFace = faces[nextInd];
 			}
-			if (bestFace == null) return; // All points accounted for
 
-			var currP = bestFace.maxPoint;
+			if (nextFace.maxPoint == -1) {
+				// No faces have any points left to process
+				return;
+			}
+			// Otherwise pop the face
+			faceHeap.popLow();
+			faces[nextInd] = null;
+			var currP = nextFace.maxPoint;
 
 			// Find all faces that can "see" this point and remove them
-			var deadFaces = [];
+			nextFace.dead = true;
+			numLiveFaces--;
+			var deadFaces = [nextFace];
 			var orphanPoints:  Map<Int, Bool> = new Map();
-			for (f in faces) {
+
+			for (fInd in faceHeap) {
+				var f = faces[fInd];
+				if (f.dead) continue;
 				var dist = f.dist(currP);
 				if (dist > -THRESH) {
 					// This face should be removed
-					for (p in f.ownedPoints) {
-						orphanPoints.set(p, true);
-					}
+					f.dead = true;
+					numLiveFaces--;
 					deadFaces.push(f);
 				}
 			}
 			for (df in deadFaces) {
-				faces.remove(df);
+				for (p in df.ownedPoints) {
+					orphanPoints.set(p, true);
+				}
 			}
 
 			// Find the edge loop of dead faces
@@ -223,7 +248,7 @@ class HullBuilder {
 
 			// Finally add the new faces to the face list
 			for (f in newFaces) {
-				faces.push(f);
+				addFace(f);
 			}
 		}
 	}
@@ -231,7 +256,10 @@ class HullBuilder {
 	function makeHull() {
 		// Take the final list of faces from the main loop and make a hull
 		var faceInds = [];
-		for (f in faces) {
+		for (fInd in faceHeap) {
+			var f = faces[fInd];
+			if (f.dead) continue;
+
 			faceInds.push(f.verts[0]);
 			faceInds.push(f.verts[1]);
 			faceInds.push(f.verts[2]);
@@ -280,7 +308,6 @@ class HullBuilder {
 
 		var startPt = edgeLoop[0].p0;
 		var currPt = startPt;
-		var nextPt = -1;
 		var edgeCount = 0;
 		while(edgeCount < edgeLoop.length) {
 			// Find the edge starting at the current pt (and make sure its only 1)
