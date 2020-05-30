@@ -171,14 +171,14 @@ class HullBuilder {
 		while(true) {
 			if (numLiveFaces >= maxFaces) return;
 
-			var nextInd = faceHeap.getLow();
+			var nextInd = faceHeap.peekNext();
 			var nextFace = faces[nextInd];
 			// Skip over dead faces
 			while (nextFace.dead) {
 				// Pop that face
-				faceHeap.popLow();
+				faceHeap.popNext();
 				faces[nextInd] = null;
-				nextInd = faceHeap.getLow();
+				nextInd = faceHeap.peekNext();
 				nextFace = faces[nextInd];
 			}
 
@@ -187,7 +187,7 @@ class HullBuilder {
 				return;
 			}
 			// Otherwise pop the face
-			faceHeap.popLow();
+			faceHeap.popNext();
 			faces[nextInd] = null;
 			var currP = nextFace.maxPoint;
 

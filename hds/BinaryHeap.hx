@@ -14,37 +14,56 @@ import hxd.Debug;
 
 class HeapIt {
 
-	var heap: BinaryHeap;
+	var h: BinaryHeap;
 	var pos: Int;
 
-	public inline function new(h, p) {
-		this.heap = h;
-		this.pos = p;
+	public inline function new(h) {
+		this.h = h;
+		this.pos = 0;
+		skipDead();
+	}
+
+	function skipDead() {
+		while(h.dead[h.heap[pos]] && pos < h.heap.length)
+			++pos;
 	}
 
 	public function hasNext():Bool {
-		return @:privateAccess heap.heap.length > pos;
+		return pos < h.heap.length;
 	}
 	public function next():Int {
-		return @:privateAccess heap.heap[pos++];
+		var ret = h.heap[pos++];
+		skipDead();
+		return ret;
 	}
 }
 
 class BinaryHeap {
+
+	@:allow(hds.HeapIt)
 	var heap: Array<Int>;
+
 	var keys: Array<Float>;
+	// "Removing" entries flags them as dead, but are not removed until
+	// they pop of the top. This is all tranparent to the user
+	@:allow(hds.HeapIt)
+	var dead: Array<Bool>;
+	var numDead: Int;
 	var nextFree: Float;
 
 	public function new(?keyVals: Array<Float>) {
 		if (keyVals != null) {
 			keys = [for (k in keyVals) k];
 			heap = [for (i in 0...keys.length) i];
+			dead = [for (i in 0...keys.length) false];
 			heapify();
 		} else {
 			heap = [];
 			keys = [];
+			dead = [];
 		}
 		nextFree = -1;
+		numDead = 0;
 	}
 
 	inline function has(i):Bool {
@@ -79,17 +98,27 @@ class BinaryHeap {
 			keys.length;
 		}
 		keys[ind] = key;
+		dead[ind] = false;
 		var pos = heap.length;
 		heap.push(ind);
 		upHeap(pos);
 		return ind;
 	}
 
-	public function getLow():Int {
-		if (heap.length == 0) return -1;
-		return heap[0];
+	public function remove(index: Int) {
+		Debug.assert(!dead[index]); // Do not allow re-removal
+		dead[index] = true;
+		++numDead;
 	}
-	public function popLow():Int {
+
+	function clearDead() {
+		while(heap.length != 0 && dead[heap[0]]) {
+			pop();
+			numDead--;
+		}
+	}
+
+	function pop():Int {
 		if (heap.length == 0) return -1;
 		var low = heap[0];
 		var last = heap.pop();
@@ -101,8 +130,18 @@ class BinaryHeap {
 		nextFree = low;
 		return low;
 	}
+	public function peekNext():Int {
+		clearDead();
+		if (heap.length == 0) return -1;
+		return heap[0];
+	}
+	public function popNext():Int{
+		clearDead();
+		return pop();
+	}
+
 	public function size():Int {
-		return heap.length;
+		return heap.length - numDead;
 	}
 
 	function upHeap(pos:Int) {
@@ -161,9 +200,17 @@ class BinaryHeap {
 			curSlot = keys[Std.int(curSlot)];
 		}
 		Debug.assert(curSlot == -1);
+
+		// Check the dead count
+		var d = 0;
+		for (i in 0...heap.length) {
+			if (dead[heap[i]])
+				d++;
+		}
+		Debug.assert(this.numDead == d);
 	}
 
 	public inline function iterator() {
-		return new HeapIt(this, 0);
+		return new HeapIt(this);
 	}
 }
