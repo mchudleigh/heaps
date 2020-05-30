@@ -17,7 +17,6 @@ class Face {
 	public var points: Array<Point>; // Pointer to parent points array
 	public var maxDist: Float;
 	public var maxPoint: Int;
-	public var dead:Bool = false;
 
 	public var edges: Array<Edge>;
 
@@ -72,7 +71,6 @@ class HullBuilder {
 	var points: Array<Point>;
 	var faces: Array<Face>;
 	var faceHeap: BinaryHeap;
-	var numLiveFaces = 0;
 
 	var maxFaces: Int;
 
@@ -164,23 +162,14 @@ class HullBuilder {
 	function addFace(f: Face) {
 		var ind = faceHeap.insert(-f.maxDist);
 		faces[ind] = f;
-		numLiveFaces++;
 	}
 
 	function mainLoop() {
 		while(true) {
-			if (numLiveFaces >= maxFaces) return;
+			if (faceHeap.size() >= maxFaces) return;
 
 			var nextInd = faceHeap.peekNext();
 			var nextFace = faces[nextInd];
-			// Skip over dead faces
-			while (nextFace.dead) {
-				// Pop that face
-				faceHeap.popNext();
-				faces[nextInd] = null;
-				nextInd = faceHeap.peekNext();
-				nextFace = faces[nextInd];
-			}
 
 			if (nextFace.maxPoint == -1) {
 				// No faces have any points left to process
@@ -192,19 +181,15 @@ class HullBuilder {
 			var currP = nextFace.maxPoint;
 
 			// Find all faces that can "see" this point and remove them
-			nextFace.dead = true;
-			numLiveFaces--;
 			var deadFaces = [nextFace];
 			var orphanPoints:  Map<Int, Bool> = new Map();
 
 			for (fInd in faceHeap) {
 				var f = faces[fInd];
-				if (f.dead) continue;
 				var dist = f.dist(currP);
 				if (dist > -THRESH) {
 					// This face should be removed
-					f.dead = true;
-					numLiveFaces--;
+					faceHeap.remove(fInd);
 					deadFaces.push(f);
 				}
 			}
@@ -258,7 +243,6 @@ class HullBuilder {
 		var faceInds = [];
 		for (fInd in faceHeap) {
 			var f = faces[fInd];
-			if (f.dead) continue;
 
 			faceInds.push(f.verts[0]);
 			faceInds.push(f.verts[1]);
