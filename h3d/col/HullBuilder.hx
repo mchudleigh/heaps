@@ -6,8 +6,13 @@ import hxd.Debug;
 class Edge {
 	public var p0: Int;
 	public var p1: Int;
-	public inline function new(p0, p1) {
-		this.p0 = p0; this.p1 = p1;
+
+	public var f: Face;
+	public var i: Int;
+	public inline function new(f, i) {
+		this.f = f; this.i = i;
+		this.p0 = f.verts[i];
+		this.p1 = f.verts[(i+1)%3];
 	}
 }
 
@@ -18,6 +23,18 @@ class Face {
 	public var maxDist: Float;
 	public var maxPoint: Int;
 
+	// Index into the 'face' array
+	public var ind:Int = -1;
+
+	// Face adjacency info
+	public var adj: Array<Face>;
+	// The "back reference" from the adjacent face
+	// ie: how the adjacent faces refers back to this face
+	// satisfying "this.adj[i].adj[this.adjRef[i]] == this" for i = 0...3
+	public var adjRef: Array<Int>;
+
+	// Has this face been marked dead
+	public var dead: Bool;
 	public var edges: Array<Edge>;
 
 	public var plane: Plane;
@@ -39,11 +56,14 @@ class Face {
 		this.maxPoint = -1;
 
 		edges = [
-			new Edge(verts[0], verts[1]),
-			new Edge(verts[1], verts[2]),
-			new Edge(verts[2], verts[0])
+			new Edge(this, 0),
+			new Edge(this, 1),
+			new Edge(this, 2),
 		];
 		ownedPoints = [];
+		dead = false;
+		adj = [];
+		adjRef = [];
 	}
 	public function addPoint(p: Int) {
 		ownedPoints.push(p);
@@ -62,6 +82,26 @@ class Face {
 	}
 	public function getEdge(i: Int) {
 		return edges[i];
+	}
+	public function validate() {
+		// Validate adjacency info
+		for (i in 0...3) {
+			var of = this.adj[i];
+			var oe = this.adjRef[i];
+			var backFace = of.adj[oe];
+			Debug.assert(backFace == this);
+		}
+		// Check that the adjacent triangles have the same verts/edges
+		for (i in 0...3) {
+			var v0 = verts[i];
+			var v1 = verts[(i+1)%3];
+			var ot = adj[i];
+			var o0 = ot.verts[adjRef[i]];
+			var o1 = ot.verts[(adjRef[i]+1)%3];
+			// Should be the same edge, but backwards
+			Debug.assert(v0 == o1);
+			Debug.assert(v1 == o0);
+		}
 	}
 }
 
@@ -144,6 +184,16 @@ class HullBuilder {
 
 		var f0 = new Face([p0, p1, p2], points);
 		var f1 = new Face([p0, p2, p1], points);
+
+		// Manually setup adjacency info
+		f0.adj = [f1,f1,f1];
+		f0.adjRef = [2,1,0];
+		f1.adj = [f0,f0,f0];
+		f1.adjRef = [2,1,0];
+
+		f0.validate();
+		f1.validate();
+
 		for (pi in 0...points.length) {
 			if (pi == p0 || pi == p1 || pi == p2) {
 				continue;
@@ -161,6 +211,7 @@ class HullBuilder {
 
 	function addFace(f: Face) {
 		var ind = faceHeap.insert(-f.maxDist);
+		f.ind = ind;
 		faces[ind] = f;
 	}
 
@@ -180,39 +231,60 @@ class HullBuilder {
 			faces[nextInd] = null;
 			var currP = nextFace.maxPoint;
 
-			// Find all faces that can "see" this point and remove them
-			var deadFaces = [nextFace];
+			// Get a list of all faces that can "see" the current point
+			// and make a connected edge loop around these faces
+			var deadFaces = [];
+			var edgeLoop = [];
+			getEdgeLoopForFace(nextFace, currP, deadFaces, edgeLoop);
+			validateConEdgeLoop(edgeLoop);
+
 			var orphanPoints:  Map<Int, Bool> = new Map();
 
-			for (fInd in faceHeap) {
-				var f = faces[fInd];
-				var dist = f.dist(currP);
-				if (dist > -THRESH) {
-					// This face should be removed
-					faceHeap.remove(fInd);
-					deadFaces.push(f);
-				}
-			}
 			for (df in deadFaces) {
+				faceHeap.remove(df.ind);
 				for (p in df.ownedPoints) {
 					orphanPoints.set(p, true);
 				}
 			}
 
-			// Find the edge loop of dead faces
-			var edgeLoop = facesToEdgeLoop(deadFaces);
-			// Check that the edge loop is indeed a single loop (optional)
-			validateEdgeLoop(edgeLoop);
-
 			// Create new faces from the edge loop and current point
 			var newFaces = [];
+			var lastFace:Face = null;
 			for (edge in edgeLoop) {
-				var newFace = new Face([currP, edge.p0, edge.p1], points);
+				var newFace = new Face([edge.p0, edge.p1, currP], points);
 				newFaces.push(newFace);
+				// Update adjacency
+
+				// Connect across edge
+				var of = edge.f.adj[edge.i];
+				Debug.assert(of.dead == false);
+				var oe = edge.f.adjRef[edge.i];
+
+				of.adj[oe] = newFace;
+				newFace.adj[0] = of;
+
+				newFace.adjRef[0] = oe;
+				of.adjRef[oe] = 0;
+
+				// Connect backwards
+				if (lastFace != null) {
+					lastFace.adj[1] = newFace;
+					newFace.adj[2] = lastFace;
+				}
+				newFace.adjRef[1] = 2; newFace.adjRef[2] = 1;
+
+				lastFace = newFace;
+			}
+			// Finally close the face loop
+			newFaces[0].adj[2] = lastFace;
+			lastFace.adj[1] = newFaces[0];
+			for (i in 0...newFaces.length) {
+				var face = newFaces[i];
+				face.validate();
 			}
 
 			// Add the orphaned points to the face
-			// they are most orthogonal to
+			// they are most orthogonally distant to
 			for (p => _ in orphanPoints) {
 				if (p == currP) continue;
 				var bestDist = Math.NEGATIVE_INFINITY;
@@ -255,62 +327,63 @@ class HullBuilder {
 		finalHull = new ConvexHull(vects, faceInds);
 	}
 
-	function facesToEdgeLoop(faces: Array<Face>) : Array<Edge> {
-		// Iterate all dead face edges, adding them to a map
-		// but removing edges that are traversed backwards
+	// Perform a search of all connected faces that can "see"
+	// the given point. Outputs the list of faces and edge loop
+	function getEdgeLoopForFace(face: Face, point: Int,
+		deadFacesOut:Array<Face>, edgeLoopOut:Array<Edge>) {
+		var faceStack = [face, face, face];
+		var edgeStack = [2,1,0];
 
-		// TOOD: ensure we do not have hash collsions here
-		// (they are quite unlikely though...)
-		var edges: Map<Int, Edge> = [];
-		for (f in faces) {
-			for (ei in 0...3) {
-				var edge = f.getEdge(ei);
-				// Add all the edges
-				var fwdKey = edge.p0+edge.p1*points.length;
-				edges[fwdKey] = edge;
+		face.dead = true;
+		deadFacesOut.push(face);
+		while(faceStack.length != 0) {
+			Debug.assert(faceStack.length == edgeStack.length);
+			var f = faceStack.pop();
+			var e = edgeStack.pop();
+			var of = f.adj[e];
+			var oe = f.adjRef[e];
+
+			// Gratuitous sanity check
+			Debug.assert(of.adj[oe] == f);
+
+			if (of.dead) continue; // Looped back around to a previous face
+
+			var dist = of.dist(point);
+			if (dist > -THRESH) {
+				// This face can see the point, mark it
+				// as dead and push it's two remaining
+				// edges onto the stack
+				of.dead = true;
+				deadFacesOut.push(of);
+
+				faceStack.push(of);
+				edgeStack.push((oe+2)%3);
+
+				faceStack.push(of);
+				edgeStack.push((oe+1)%3);
+			} else {
+				// The other face is not visible, therefore this edge is
+				// part of the loop
+				edgeLoopOut.push(f.getEdge(e));
 			}
 		}
-		for (f in faces) {
-			for (ei in 0...3) {
-				var edge = f.getEdge(ei);
-				// Now find all the edges we back over and remove them
-				var revKey = edge.p1+edge.p0*points.length;
-				if (edges.exists(revKey)) {
-					edges.remove(revKey);
-				}
-			}
-		}
-		var ret = [];
-		for (_=> e in edges) {
-			if (e != null)
-				ret.push(e);
-		}
-		return ret;
 	}
 
-	function validateEdgeLoop(edgeLoop: Array<Edge>) {
-
+	// Validate an edge loop that is in loop order
+	function validateConEdgeLoop(edgeLoop: Array<Edge>) {
 		var startPt = edgeLoop[0].p0;
 		var currPt = startPt;
-		var edgeCount = 0;
-		while(edgeCount < edgeLoop.length) {
-			// Find the edge starting at the current pt (and make sure its only 1)
-			var foundEdges = 0;
-			var nextPt = -1;
-			for (e in edgeLoop) {
-				if (e.p0 == currPt) {
-					nextPt = e.p1;
-					foundEdges++;
-				}
-			}
-			// Make sure their is no branching
-			Debug.assert(foundEdges == 1);
-			// Make sure we have not returned to the start too soon
-			Debug.assert(edgeCount == 0 || currPt != startPt);
-			currPt = nextPt;
-			edgeCount++;
+		var seenPts: Map<Int,Bool> = new Map();
+		for (e in edgeLoop) {
+			// Check connected
+			Debug.assert(e.p0 == currPt);
+			currPt = e.p1;
+
+			// Detect loops
+			Debug.assert(seenPts[currPt] == null);
+			seenPts[currPt] = true;
 		}
-		// Ensure we return to the start at the correct time
+		// Check closed
 		Debug.assert(currPt == startPt);
 	}
 
