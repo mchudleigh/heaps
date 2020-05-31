@@ -2,9 +2,42 @@ package h3d.col;
 
 import hxd.Debug;
 
+import h3d.col.Point;
+
 // An implementation of GJK enhanced with the signed volume distance method
 // based on this paper by Montanari, Petrinic and Barbier:
 // https://ora.ox.ac.uk/objects/uuid:69c743d9-73de-4aff-8e6f-b4dd7c010907/download_file?safe_filename=GJK.PDF&file_format=application%2Fpdf&type_of_work=Journal+article
+
+interface ConvexCollider {
+	public function getID():Int;
+	public function support(x:Float,y:Float,z:Float, out:Point):Void;
+	public function startPoint(): Point;
+}
+
+class SphereCollider implements ConvexCollider {
+	public var center: Point;
+	public var radius: Float;
+	public var id: Int;
+	public function new(c, r, i) {
+		center = c;
+		radius = r;
+		id = i;
+	}
+	public function getID() { return id;}
+
+	public function support(x:Float, y:Float, z:Float, out:Point) {
+		out.x = x; out.y = y; out.z = z;
+		out.normalize();
+		out.scale(radius);
+		// Add, but avoid allocation
+		out.x += center.x;
+		out.y += center.y;
+		out.z += center.z;
+	}
+	public function startPoint():Point {
+		return center;
+	}
+}
 
 
 // Simple tuple like class to contain results from the dist*D functions
@@ -24,12 +57,116 @@ class DistRes {
 	}
 }
 
+class CachedColRes {
+	public var p0: Point;
+	public var p1: Point;
+	public var id0: Int;
+	public var id1: Int;
+}
+
+class ColRes {
+	public var collides: Bool;
+	// Vec is the distance vector if no collision
+	// or the penetration vector if collision
+	public var vec: Point;
+	public function new(c,v) {
+		collides = c;
+		vec = v;
+	}
+}
+
 class HullCollision {
+	static final  MAX_LOOP = 1000;
+	static final REL = 0.1;
+
+	var cache: Map<Int, CachedColRes>;
+	public function new() {
+		cache = new Map();
+	}
+
+	function getCachedRes(id0, id1): CachedColRes {
+		// TODO
+		return null;
+	}
+
+	public function testCollision(c0:ConvexCollider, c1:ConvexCollider, precise:Bool, tol = 0.000001): ColRes {
+		// Check the cache for a start point
+		var s0; var s1;
+		var cached = getCachedRes(c0.getID(), c1.getID());
+		if (cached != null) {
+			s0 = cached.p0;
+			s1 = cached.p1;
+		} else {
+			s0 = c0.startPoint();
+			s1 = c1.startPoint();
+		}
+
+		var v = s0.sub(s1); // Point in simplex closest to origin. Updated every iteration
+		var simp = [];
+		var sup0 = new Point();
+		var sup1 = new Point();
+		for (i in 0...MAX_LOOP) {
+			c0.support(-v.x, -v.y, -v.z, sup0);
+			c1.support( v.x,  v.y,  v.z, sup1);
+
+			var p = sup0.sub(sup1);
+
+			var vLenSq = v.lengthSq();
+			var pDotV = p.dot(v);
+			if (!precise && pDotV > 0) {
+				// Fast, but imprecise no-collision condition
+				return new ColRes(false, p);
+			}
+			if (vLenSq-pDotV < REL*vLenSq) {
+				// More precise no-collision condition
+				return new ColRes(false, p);
+			}
+
+			simp.push(p);
+			// Refine the simplex
+			var distRes = dist(simp);
+			v = distRes.point();
+			simp = distRes.simp;
+			if (simp.length == 4) {
+				// Origin is contained, therefore contact
+				break;
+			}
+			var maxSimpLnSq = 0.0;
+			for (sp in simp) {
+				maxSimpLnSq = Math.max(maxSimpLnSq, sp.lengthSq());
+			}
+			if (vLenSq < tol*maxSimpLnSq) {
+				break;
+			}
+		}
+		// Collision, take the closest point on the simplex as the penetration vector
+		var minSimpLen = Math.POSITIVE_INFINITY;
+		var minSimp = null;
+		for (sp in simp) {
+			var simpLen = sp.lengthSq();
+			if (simpLen < minSimpLen) {
+				minSimpLen = simpLen;
+				minSimp = sp;
+			}
+		}
+		return new ColRes(true, minSimp);
+	}
 
 	// Sign comparison that intentionally fails for 0 and NaN
 	static inline function compSigns(v0:Float, v1:Float) {
 		return ((v0>0 && v1>0) || (v0<0 && v1<0));
 	}
+
+	static function dist(simp:Array<Point>): DistRes {
+		switch(simp.length) {
+			case 4: return dist3D(simp);
+			case 3: return dist2D(simp);
+			case 2: return dist1D(simp);
+			case 1: return new DistRes(simp, [1]);
+			default: throw "bad simplex";
+		}
+	}
+
 
 	// Equivalent to S3D in the paper
 	static function dist3D( simp: Array<Point>): DistRes {

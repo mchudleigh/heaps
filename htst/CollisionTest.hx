@@ -190,5 +190,20 @@ class CollisionTest extends utest.Test {
 
 	}
 
+	function testSphereGJK() {
+		// Test collision based on some simple sphere geometry
+		var sph0 = new SphereCollider(new Point(1,0,0), 1.0, 0);
+		var sph1 = new SphereCollider(new Point(5,0,0), 2.0, 1);
 
+		var coll = new HullCollision();
+		var res;
+		res = coll.testCollision(sph0, sph1, true);
+		Assert.isFalse(res.collides);
+		Assert.floatEquals(1, res.vec.length());
+
+		sph1.center = new Point(5,3,0); // Make a 3,4,5 triangle
+		res = coll.testCollision(sph0, sph1, true);
+		Assert.isFalse(res.collides);
+		Assert.floatEquals(2, res.vec.length());
+	}
 }
