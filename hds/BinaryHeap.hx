@@ -40,6 +40,8 @@ class HeapIt {
 
 class BinaryHeap {
 
+	static final DEAD_THRESH = 0.5;
+
 	@:allow(hds.HeapIt)
 	var heap: Array<Int>;
 
@@ -88,6 +90,7 @@ class BinaryHeap {
 	// Insert a new value and maintain the heap property
 	// returns the index associated with this key
 	public function insert(key: Float):Int {
+		popDead();
 		var ind = if (nextFree != -1) {
 			// Pop one entry off the free list
 			var newFree = nextFree;
@@ -109,13 +112,31 @@ class BinaryHeap {
 		Debug.assert(!dead[index]); // Do not allow re-removal
 		dead[index] = true;
 		++numDead;
+		if (numDead/heap.length > DEAD_THRESH) {
+			// This array has too many dead entries
+			// perform a "GC"
+			cleanupDead();
+		}
 	}
 
-	function clearDead() {
+	function popDead() {
 		while(heap.length != 0 && dead[heap[0]]) {
 			pop();
 			numDead--;
 		}
+	}
+	function cleanupDead() {
+		Debug.assert(keys.length == dead.length); // Gratuitous sanity check
+
+		// Force all dead entries to the top of the heap
+		// then pop them all
+		for (i in 0...dead.length) {
+			if (dead[i]) {
+				keys[i] = Math.NEGATIVE_INFINITY; // Max priority!!
+			}
+		}
+		heapify();
+		popDead();
 	}
 
 	function pop():Int {
@@ -126,17 +147,20 @@ class BinaryHeap {
 			heap[0] = last;
 			downHeap(0);
 		}
+
+		dead[low] = false;
+
 		keys[low] = nextFree;
 		nextFree = low;
 		return low;
 	}
 	public function peekNext():Int {
-		clearDead();
+		popDead();
 		if (heap.length == 0) return -1;
 		return heap[0];
 	}
 	public function popNext():Int{
-		clearDead();
+		popDead();
 		return pop();
 	}
 
