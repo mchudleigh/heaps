@@ -1,10 +1,20 @@
 # Heaps
-_High Performance Game Framework_
+_Heaps Data-oriented fork_
 
-[![Build Status](https://travis-ci.org/HeapsIO/heaps.svg?branch=master)](https://travis-ci.org/HeapsIO/heaps)
-[![](https://img.shields.io/discord/162395145352904705.svg?logo=discord)](https://discordapp.com/invite/sWCGm33)
+This is a fork of the Heaps game engine. While the creators have huge amount of respect for the Heaps project, there are a few fundamental differences in design that are leading to this fork.
 
-[![Heaps.io logo](https://raw.githubusercontent.com/HeapsIO/heaps.io/master/assets/logo/logo-heaps-color.png)](http://heaps.io)
+This project will strive to be different than Heaps in the following ways:
+- Only support open specifications and open source tools (GLTF will be the primary 3D format)
+- Remove compatibility with some platforms (primarily Flash) and focus on Web and native desktop
+- Rework the rendering engine to be more compatible with next-gen APIs like Vulkan and WebGPU
+- Supoort new open formats like WebAssembly and WebGPU
+- Replace the Object-Oriented scene graph with a Data-Oriented system (specific design decisions TBD).
+
+[Heaps Homepage](https://heaps.io)
+
+
+Original Heaps Readme Below:
+----------------------------
 
 **Heaps** is a cross platform graphics engine designed for high performance games. It's designed to leverage modern GPUs that are commonly available on desktop, mobile and consoles.
 
