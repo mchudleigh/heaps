@@ -25,6 +25,7 @@ class ExpEdge {
 class ExpFace {
 	public var verts: Array<Int>;
 	public var points: Array<Point>; // Pointer to global points array
+	public var nextPt: Int; // The point used to expand the hull when this face is next
 	public var termFlag: Bool;
 	public var priority: Float;
 
@@ -102,18 +103,21 @@ class ExpFace {
 
 class NewFaceRes {
 	public var priority: Float;
+	public var point: Int;
 	public var term: Bool;
-	public function new(pri, term) {
+	public var skip: Bool;
+	public function new(pri, point, term, skip) {
 		this.priority = pri;
+		this.point = point;
 		this.term = term;
+		this.skip = skip;
 	}
 }
 
 interface ExpHullUser {
 	public function onDeadFaces(deadFaces: Array<ExpFace>): Void;
-	public function onNewFaces(deadFaces: Array<ExpFace>): Array<NewFaceRes>;
-	public function afterAddFaces(deadFaces: Array<ExpFace>): Void;
-	public function getPoint(face:ExpFace):Int;
+	public function onNewFaces(newFaces: Array<ExpFace>): Array<NewFaceRes>;
+	public function afterAddFaces(newFaces: Array<ExpFace>): Void;
 }
 
 
@@ -135,9 +139,12 @@ class ExpHull {
 		this.points = points;
 		this.user = hullUser;
 
-		Debug.assert(initPoints.length == 3);
-		initTriangles(initPoints);
-		//TODO: 4 point tetrahedra
+		if(initPoints.length == 3) {
+			initTriangles(initPoints);
+		} else {
+			Debug.assert(initPoints.length == 4);
+			initTetra(initPoints);
+		}
 	}
 
 	// Create 2 opposing triangles from 3 points
@@ -165,12 +172,57 @@ class ExpHull {
 
 		user.afterAddFaces([f0,f1]);
 	}
+	function initTetra(initPoints: Array<Int>) {
+		var p0 = initPoints[0];
+		var p1 = initPoints[1];
+		var p2 = initPoints[2];
+		var p3 = initPoints[3];
+
+		var f0 = new ExpFace([p0, p1, p2], points);
+		var f1 = new ExpFace([p1, p0, p3], points);
+		var f2 = new ExpFace([p2, p1, p3], points);
+		var f3 = new ExpFace([p0, p2, p3], points);
+
+		f0.adj = [f1,f2,f3];
+		f0.adjRef = [0,0,0];
+		f1.adj = [f0,f3,f2];
+		f1.adjRef = [0,2,1];
+		f2.adj = [f0,f1,f3];
+		f2.adjRef = [1,2,1];
+		f3.adj = [f0,f2,f1];
+		f3.adjRef = [2,2,1];
+
+		f0.validate();
+		f1.validate();
+		f2.validate();
+		f3.validate();
+
+		var faceRes = user.onNewFaces([f0,f1,f2,f3]);
+
+		Debug.assert(faceRes.length == 4);
+		insertFace(f0, faceRes[0]);
+		insertFace(f1, faceRes[1]);
+		insertFace(f2, faceRes[2]);
+		insertFace(f3, faceRes[3]);
+
+		user.afterAddFaces([f0,f1,f2,f3]);
+
+	}
+
 	function insertFace(f:ExpFace, fr: NewFaceRes) {
+		if (fr.skip) return;
+
+		f.nextPt = fr.point;
 		f.termFlag = fr.term;
 		f.priority = fr.priority;
 
 		f.ind = faceHeap.insert(fr.priority);
 		faces[f.ind] = f;
+	}
+
+	// Return the next face that
+	public function peekNext(): ExpFace {
+		return faces[faceHeap.peekNext()];
 	}
 
 	// Pop a single face off the heap and expand the hull
@@ -189,20 +241,29 @@ class ExpHull {
 			return false;
 		}
 
-		// Otherwise pop the face
-		faceHeap.popNext();
-		faces[nextInd] = null;
-		var currP = user.getPoint(nextFace);
+		var currP = nextFace.nextPt;
+		if (currP < 0) {
+			done = true;
+			return false;
+		}
 
 		var deadFaces = [];
 		var edgeLoop = [];
 		getEdgeLoopForFace(nextFace, currP, deadFaces, edgeLoop);
+
+		if (edgeLoop.length == 0) {
+			// This is a planar hull and every face is dead
+			throw "Planar hull";
+		}
 		validateEdgeLoop(edgeLoop);
 
 		user.onDeadFaces(deadFaces);
 
 		for (df in deadFaces) {
-			if (df != nextFace) faceHeap.remove(df.ind);
+			if (df.ind >= 0) {
+				faceHeap.remove(df.ind);
+				faces[df.ind] = null;
+			}
 		}
 
 		// Create new faces from the edge loop and current point

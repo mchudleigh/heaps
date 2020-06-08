@@ -18,12 +18,10 @@ class HullBuilder implements ExpHullUser {
 	var init = true;
 	// Points owned by the faces
 	var ownedPoints: Array<Array<Int>>;
-	var bestPoints: Array<Int>;
 
 	// Temporary ownership needed due to how
 	// ExpHull assigns indices
 	var tempOwnedPoints: Array<Array<Int>>;
-	var tempBestPoints: Array<Int>;
 
 	public var finalHull: ConvexHull;
 
@@ -101,7 +99,6 @@ class HullBuilder implements ExpHullUser {
 		}
 
 		ownedPoints = [];
-		bestPoints = [];
 		expHull = new ExpHull(points, [p0,p1,p2], this);
 		init = false;
 	}
@@ -147,12 +144,12 @@ class HullBuilder implements ExpHullUser {
 
 	public function onNewFaces(newFaces: Array<ExpFace>):Array<NewFaceRes> {
 		tempOwnedPoints = [];
-		tempBestPoints = [];
 		var bestDists = [];
+		var bestPts = [];
 		for (i in 0...newFaces.length) {
 			tempOwnedPoints[i] = [];
 			bestDists[i] = Math.NEGATIVE_INFINITY;
-			tempBestPoints[i] = -1;
+			bestPts[i] = -1;
 		}
 
 		// Re parent all the orphans
@@ -171,7 +168,7 @@ class HullBuilder implements ExpHullUser {
 				tempOwnedPoints[bestFace].push(p);
 				if (bestDist > bestDists[bestFace]) {
 					bestDists[bestFace] = bestDist;
-					tempBestPoints[bestFace] = p;
+					bestPts[bestFace] = p;
 				}
 			} else {
 				// If none of the new faces can "see" this point, it's
@@ -182,7 +179,7 @@ class HullBuilder implements ExpHullUser {
 					// need to be added so add it to the first face
 					if (tempOwnedPoints[0].length == 0) {
 						bestDists[0] = 0;
-						tempBestPoints[0] = p;
+						bestPts[0] = p;
 					}
 					tempOwnedPoints[0].push(p);
 				}
@@ -190,7 +187,7 @@ class HullBuilder implements ExpHullUser {
 		}
 
 		return [for (i in 0...newFaces.length)
-			new NewFaceRes(-bestDists[i], tempBestPoints[i] == -1)];
+			new NewFaceRes(-bestDists[i], bestPts[i], bestPts[i] == -1, false)];
 	}
 
 	public function afterAddFaces(newFaces: Array<ExpFace>) {
@@ -198,11 +195,7 @@ class HullBuilder implements ExpHullUser {
 		// set the proper ownership array
 		for (i  in 0...newFaces.length) {
 			ownedPoints[newFaces[i].ind] = tempOwnedPoints[i];
-			bestPoints[newFaces[i].ind] = tempBestPoints[i];
 		}
-	}
-	public function getPoint(face:ExpFace):Int {
-		return bestPoints[face.ind];
 	}
 
 	public static function buildHull(points: Array<Point>, maxFaces = 100) : ConvexHull {

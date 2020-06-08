@@ -3,10 +3,12 @@ package htst;
 import utest.Assert;
 
 class Check {
-	public static function point(x, y, z, p, ?pos:haxe.PosInfos) {
-		Assert.floatEquals(x, p.x, 'X component wrong. Expected: $x Got: ${p.x}', pos);
-		Assert.floatEquals(y, p.y, 'Y component wrong. Expected: $y Got: ${p.x}', pos);
-		Assert.floatEquals(z, p.z, 'Z component wrong. Expected: $z Got: ${p.z}', pos);
+	public static function point(x, y, z, p, eps = 0.00001, ?pos:haxe.PosInfos):Bool {
+		Assert.floatEquals(x, p.x, eps, 'X component wrong. Expected: $x Got: ${p.x}', pos);
+		Assert.floatEquals(y, p.y, eps, 'Y component wrong. Expected: $y Got: ${p.x}', pos);
+		Assert.floatEquals(z, p.z, eps, 'Z component wrong. Expected: $z Got: ${p.z}', pos);
+
+		return Math.abs(x-p.x) > eps ||Math.abs(y-p.y) > eps ||Math.abs(z-p.z) > eps;
 	}
 	public static function floatArray(exp:Array<Float>, val:Array<Float>, ?pos:haxe.PosInfos) {
 		Assert.equals(exp.length, val.length,

@@ -8,37 +8,6 @@ import h3d.col.Point;
 // based on this paper by Montanari, Petrinic and Barbier:
 // https://ora.ox.ac.uk/objects/uuid:69c743d9-73de-4aff-8e6f-b4dd7c010907/download_file?safe_filename=GJK.PDF&file_format=application%2Fpdf&type_of_work=Journal+article
 
-interface ConvexCollider {
-	public function getID():Int;
-	public function support(x:Float,y:Float,z:Float, out:Point):Void;
-	public function startPoint(): Point;
-}
-
-class SphereCollider implements ConvexCollider {
-	public var center: Point;
-	public var radius: Float;
-	public var id: Int;
-	public function new(c, r, i) {
-		center = c;
-		radius = r;
-		id = i;
-	}
-	public function getID() { return id;}
-
-	public function support(x:Float, y:Float, z:Float, out:Point) {
-		out.x = x; out.y = y; out.z = z;
-		out.normalize();
-		out.scale(radius);
-		// Add, but avoid allocation
-		out.x += center.x;
-		out.y += center.y;
-		out.z += center.z;
-	}
-	public function startPoint():Point {
-		return center;
-	}
-}
-
 
 // Simple tuple like class to contain results from the dist*D functions
 class DistRes {
@@ -76,9 +45,10 @@ class ColRes {
 }
 
 class HullCollision {
-	static final  MAX_LOOP = 1000;
-	static final REL = 0.1;
+	static final  MAX_LOOP = 100;
+	static final REL = 0.01;
 
+	var loopCount: Int;
 	var cache: Map<Int, CachedColRes>;
 	public function new() {
 		cache = new Map();
@@ -89,7 +59,11 @@ class HullCollision {
 		return null;
 	}
 
-	public function testCollision(c0:ConvexCollider, c1:ConvexCollider, precise:Bool, tol = 0.000001): ColRes {
+	public function getLastLoopCount() {
+		return loopCount;
+	}
+
+	public function testCollision(c0:ConvexCollider, c1:ConvexCollider, precise:Bool, tol = 0.0000001): ColRes {
 		// Check the cache for a start point
 		var s0; var s1;
 		var cached = getCachedRes(c0.getID(), c1.getID());
@@ -105,56 +79,202 @@ class HullCollision {
 		var simp = [];
 		var sup0 = new Point();
 		var sup1 = new Point();
-		for (i in 0...MAX_LOOP) {
+		var vLenSq = 0.0;
+		var maxSimpLnSq = 0.0;
+		loopCount = 0;
+		var p: Point = null;
+		var pDotV = 0.0;
+		var vLenMinPDotV = 0.0;
+		var relSqVLenSq = 0.0;
+		while(loopCount < MAX_LOOP) {
 			c0.support(-v.x, -v.y, -v.z, sup0);
 			c1.support( v.x,  v.y,  v.z, sup1);
 
-			var p = sup0.sub(sup1);
+			p = sup0.sub(sup1);
 
-			var vLenSq = v.lengthSq();
-			var pDotV = p.dot(v);
+			vLenSq = v.lengthSq();
+
+			pDotV = p.dot(v);
 			if (!precise && pDotV > 0) {
 				// Fast, but imprecise no-collision condition
-				return new ColRes(false, p);
+				return new ColRes(false, v);
 			}
-			if (vLenSq-pDotV < REL*vLenSq) {
+			vLenMinPDotV = vLenSq-pDotV;
+			relSqVLenSq = REL*REL*vLenSq;
+			if (vLenSq > 0.000000001 && vLenMinPDotV < relSqVLenSq) {
+			//if (vLenSq-pDotV < REL*vLenSq) {
 				// More precise no-collision condition
-				return new ColRes(false, p);
+				return new ColRes(false, v);
+			}
+			// Check if p is already in the simplex
+			for (sp in simp) {
+				var d = p.sub(sp).length();
+				if (vLenSq > 0.000000001 && d < 0.0001) {
+					// This point is in the simplex
+					return new ColRes(false, v);
+				}
 			}
 
 			simp.push(p);
 			// Refine the simplex
 			var distRes = dist(simp);
-			v = distRes.point();
 			simp = distRes.simp;
+
 			if (simp.length == 4) {
 				// Origin is contained, therefore contact
 				break;
 			}
-			var maxSimpLnSq = 0.0;
+			maxSimpLnSq = 0.0;
 			for (sp in simp) {
 				maxSimpLnSq = Math.max(maxSimpLnSq, sp.lengthSq());
 			}
 			if (vLenSq < tol*maxSimpLnSq) {
+				// point V is _really_ close to the origin (relative to
+				// the size of the simplex, consider this a grazing collision)
 				break;
 			}
+			v = distRes.point();
+			loopCount++;
 		}
-		// Collision, take the closest point on the simplex as the penetration vector
-		var minSimpLen = Math.POSITIVE_INFINITY;
-		var minSimp = null;
-		for (sp in simp) {
-			var simpLen = sp.lengthSq();
-			if (simpLen < minSimpLen) {
-				minSimpLen = simpLen;
-				minSimp = sp;
+
+		// Collision, run EPA to find the penetration vector
+
+		var gjkSimp = [];
+		for (s in simp) {
+			gjkSimp.push(s.clone());
+		}
+		var gjkPoints = simp.length;
+		var gjkRes = dist(gjkSimp);
+		var gjkP = gjkRes.point();
+
+		// TODO: Add incremental progress metric
+		// to detect stuck states before MAX_LOOP iterations
+		if (loopCount == MAX_LOOP) {
+			return new ColRes(false, v);
+		}
+
+		if (simp.length == 1) {
+			return new ColRes(true, v);
+		}
+
+		// Add support points until the simplex has 4 points
+		// The goal is not to get closer to the origin, but rather full enclose
+		// the origin (the bigger the better) being on a face or edge is fine
+		while(simp.length != 4) {
+			switch (simp.length) {
+				case 2: {
+					// Get support points from the 4 normal dirs to the edge
+					var dir = simp[1].sub(simp[0]);
+					if (dir.length() < tol) {
+						// It's basically the same point, call it a collision
+						return new ColRes(true, simp[0]);
+					}
+					var t = new Point(1,1,1);
+					var n0 = dir.cross(t);
+					if (n0.lengthSq() < 0.000001) {
+						// Accidentally parallel, try again
+						t.y = -1;
+						n0 = dir.cross(t);
+					}
+					n0.normalize();
+					var n1 = dir.cross(n0);
+					n1.normalize();
+
+					c0.support( n0.x, n0.y, n0.z, sup0);
+					c1.support(-n0.x,-n0.y,-n0.z, sup1);
+					var p0 = sup0.sub(sup1);
+					c0.support(-n0.x,-n0.y,-n0.z, sup0);
+					c1.support( n0.x, n0.y, n0.z, sup1);
+					var p1 = sup0.sub(sup1);
+
+					c0.support( n1.x, n1.y, n1.z, sup0);
+					c1.support(-n1.x,-n1.y,-n1.z, sup1);
+					var p2 = sup0.sub(sup1);
+					c0.support(-n1.x,-n1.y,-n1.z, sup0);
+					c1.support( n1.x, n1.y, n1.z, sup1);
+					var p3 = sup0.sub(sup1);
+
+					var p0DotN = p0.dot(n0);
+					var p1DotN = p1.dot(n0) * -1.0;
+					var p2DotN = p2.dot(n1);
+					var p3DotN = p3.dot(n1) * -1.0;
+					if (p0DotN < tol) {
+						// We are genuinely on the surface
+						n0.scale(p0DotN);
+						return new ColRes(true, n0);
+					}
+					if (p1DotN < tol) {
+						// We are genuinely on the surface
+						n0.scale(-1.0*p1DotN);
+						return new ColRes(true, n0);
+					}
+					if (p2DotN < tol) {
+						// We are genuinely on the surface
+						n1.scale(p2DotN);
+						return new ColRes(true, n1);
+					}
+					if (p3DotN < tol) {
+						// We are genuinely on the surface
+						n1.scale(-1.0*p3DotN);
+						return new ColRes(true, n1);
+					}
+					// Otherwise add the furthest 2 points
+					simp.push((p0DotN > p1DotN) ? p0: p1);
+					simp.push((p2DotN > p2DotN) ? p2: p3);
+
+				}
+				case 3: {
+					// project a ray in both normals to the simplex
+					// keep the point furthest out
+					var v0 = simp[1].sub(simp[0]);
+					var v1 = simp[2].sub(simp[0]);
+					var n = v0.cross(v1);
+					if (n.lengthSq() < 0.0000001) {
+						// Colinear, drop a point and return to the 2-simplex case
+
+						// This should be very unlikely though
+						simp.pop();
+						continue;
+					}
+					n.normalize();
+					c0.support( n.x, n.y, n.z, sup0);
+					c1.support(-n.x,-n.y,-n.z, sup1);
+					var p0 = sup0.sub(sup1);
+
+					c0.support(-n.x,-n.y,-n.z, sup0);
+					c1.support( n.x, n.y, n.z, sup1);
+					var p1 = sup0.sub(sup1);
+
+					var p0DotN = n.dot(p0);
+					if (p0DotN < tol) {
+						// We are genuinely on the surface
+						n.scale(p0DotN);
+						return new ColRes(true, n);
+					}
+					var p1DotN = n.dot(p1) * -1.0;
+					if (p1DotN < tol) {
+						// We are genuinely on the surface
+						n.scale(-1.0*p1DotN);
+						return new ColRes(true, n);
+					}
+					// TODO: take the point that contains the origin
+					// (not the furthest point)
+					simp.push((p0DotN > p1DotN) ? p0: p1);
+
+				}
+				default: throw "impossible";
 			}
 		}
-		return new ColRes(true, minSimp);
+		var dRes = dist(simp);
+
+		var penVect = EPA.run(simp, c0, c1);
+		loopCount += EPA.getLastLoops();
+		return new ColRes(true, penVect);
 	}
 
 	// Sign comparison that intentionally fails for 0 and NaN
 	static inline function compSigns(v0:Float, v1:Float) {
-		return ((v0>0 && v1>0) || (v0<0 && v1<0));
+		return ((v0>0 && v1>0.0000001) || (v0<0 && v1<-0.0000001));
 	}
 
 	static function dist(simp:Array<Point>): DistRes {
@@ -217,7 +337,8 @@ class HullCollision {
 	}
 
 	// Equivalent to S2D in the paper
-	static function dist2D( simp: Array<Point>): DistRes {
+	// Note: this is public because it's used by EPA
+	public static function dist2D( simp: Array<Point>): DistRes {
 		Debug.assert(simp.length == 3);
 		var p0 = simp[0];
 		var p1 = simp[1];
