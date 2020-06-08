@@ -289,6 +289,8 @@ class CollisionTest extends utest.Test {
 		}
 
 		var numTests = 0;
+		var totalLoops = 0.0;
+		var totLoopsSq = 0.0;
 		while (numTests < 500) {
 			// Generate random spheres and make sure they do not collide
 			// Random vals on [-5,5]
@@ -301,7 +303,7 @@ class CollisionTest extends utest.Test {
 			var radSum = rad0 + rad1;
 			var diff = p0.sub(p1);
 			var dist = diff.length();
-			if (radSum+0.001 > dist) {
+			if (radSum+0.0005 > dist) {
 				// collision, skip it
 				continue;
 			}
@@ -309,22 +311,32 @@ class CollisionTest extends utest.Test {
 			diff.scale(dist-rad0-rad1);
 			var sp0 = ColBuilder.sphere(p0, rad0, 1);
 			var sp1 = ColBuilder.sphere(p1, rad1, 1);
-			res = coll.testCollision(sp0, sp1, true);
-			Assert.isFalse(res.collides);
-			// calculate expected relative distance
+
 			var dLen = diff.length();
 			var thresh = Math.max(dLen*0.011, 0.001); // Actual setting is 0.01
 
+			res = coll.testCollision(sp0, sp1, true);
+			Assert.isFalse(res.collides);
+			// calculate expected relative distance
 			var checkFail = Check.point(diff.x, diff.y, diff.z, res.vec, thresh);
 			// if (res.collides || checkFail) {
 			// 	var res2 = coll.testCollision(sp0, sp1, true);
 			// }
+			var lastLoops = coll.getLastLoopCount();
+			totalLoops += lastLoops;
+			totLoopsSq += lastLoops*lastLoops;
 			numTests++;
 		}
+		// Assert less than 10 loops on average
+		var averageLoops = totalLoops/numTests;
+		var stdDevLoops = Math.sqrt(totLoopsSq/numTests - averageLoops*averageLoops);
+
+		Assert.isTrue(averageLoops < 10.0);
+
 		numTests = 0;
 		//return;
 		// Generate 50 collisions
-		while(numTests < 500) {
+		while(numTests < 50) {
 			var p0 = getRandPt(-5,5);
 			var p1 = getRandPt(-5,5);
 
@@ -334,20 +346,133 @@ class CollisionTest extends utest.Test {
 			var diff = p0.sub(p1);
 			var dist = diff.length();
 			var radSum = rad0+rad1;
-			if ((rad0+rad1)-0.001 < dist) {
+			if (radSum-0.0001 < dist) {
 				// no collision, skip it
 				continue;
 			}
 			diff.normalize();
 			diff.scale(dist-radSum);
+			var thresh = Math.max((radSum-dist)*0.01, 0.001); // 1% accuracy target
 			var sp0 = ColBuilder.sphere(p0, rad0, 1);
 			var sp1 = ColBuilder.sphere(p1, rad1, 1);
 			res = coll.testCollision(sp0, sp1, true);
 			var numLoops = coll.getLastLoopCount();
 			Assert.isTrue(res.collides);
-			var checkFail = Check.point(diff.x, diff.y, diff.z, res.vec, 0.05);
+			var checkFail = Check.point(diff.x, diff.y, diff.z, res.vec, thresh);
+			// var err = new Point();
 			// if (!res.collides || checkFail) {
+			// 	err = diff.sub(res.vec);
 			// 	var res2 = coll.testCollision(sp0, sp1, true);
+			// }
+			numTests++;
+		}
+	}
+
+	function testRandomCylinderCol() {
+		var coll = new HullCollision();
+		var res;
+
+		function getRandPtXY(min,max): Point {
+			var x = (max-min)*Math.random() + min;
+			var y = (max-min)*Math.random() + min;
+			return new Point(x,y,0);
+		}
+
+		var numTests = 0;
+		var totalLoops = 0.0;
+		var totLoopsSq = 0.0;
+		while (numTests < 500) {
+			// Generate random cylinders of different height and make sure they do not collide
+			// Random vals on [-5,5]
+			var p0 = getRandPtXY(-5,5);
+			var p1 = getRandPtXY(-5,5);
+
+			// Radius up to 3
+			var rad0 = 3*Math.random();
+			var rad1 = 3*Math.random();
+			var height0 = 10*Math.random();
+			var height1 = 10*Math.random();
+			var radSum = rad0 + rad1;
+			var diff = p0.sub(p1);
+			var dist = diff.length();
+			if (radSum+0.0001 > dist) {
+				// collision, skip it
+				continue;
+			}
+			diff.normalize();
+			diff.scale(dist-rad0-rad1);
+			var cyl0 = ColBuilder.offset(ColBuilder.cylinder(rad0, height0, 41), p0, 42);
+			var cyl1 = ColBuilder.offset(ColBuilder.cylinder(rad1, height1, 43), p1, 44);
+			res = coll.testCollision(cyl0, cyl1, true);
+			Assert.isFalse(res.collides);
+			// calculate expected relative distance
+			var dLen = diff.length();
+			var thresh = Math.max(dLen*0.011, 0.001); // Actual setting is 0.01
+
+			var checkFail = Check.point(diff.x, diff.y, diff.z, res.vec, thresh);
+			// if (res.collides || checkFail) {
+			// 	var res2 = coll.testCollision(cyl0, cyl1, true);
+			// }
+			var lastLoops = coll.getLastLoopCount();
+			totalLoops += lastLoops;
+			totLoopsSq += lastLoops*lastLoops;
+			numTests++;
+		}
+		// Assert less than 10 loops on average
+		var averageLoops = totalLoops/numTests;
+		var stdDevLoops = Math.sqrt(totLoopsSq/numTests - averageLoops*averageLoops);
+
+		Assert.isTrue(averageLoops < 10.0);
+
+		numTests = 0;
+		while (numTests < 50) {
+			// Generate random cylinders of different height and make sure they do not collide
+			// Random vals on [-5,5]
+			var p0 = getRandPtXY(-5,5);
+			var p1 = getRandPtXY(-5,5);
+
+			p1.z = 0.00001; // Bias a bit to fix displacement sign
+			// Radius up to 3
+			var rad0 = 3*Math.random();
+			var rad1 = 3*Math.random();
+			var height0 = 10*Math.random();
+			var height1 = 10*Math.random();
+			var hDiff = Math.abs(height0-height1);
+			var minH = Math.min(height0, height1);
+			var hDist = minH + hDiff/2;
+			var radSum = rad0 + rad1;
+			var diff = p0.sub(p1);
+			var dist = diff.length();
+			if ((radSum)-0.0001 < dist) {
+				// no collision, skip it
+				continue;
+			}
+			if (Math.abs((radSum - dist) - hDist) < 0.001) {
+				continue; // Horizontal offset vs vertical is almost ambiguous
+			}
+			var thresh;
+			var vertOffset = (radSum - dist) > hDist;
+			if (vertOffset) {
+				diff.x = 0; diff.y = 0; diff.z = hDist;
+				thresh = hDist * 0.01; // 1% accuracy target
+			} else {
+				diff.normalize();
+				diff.scale(dist-radSum);
+				thresh = (radSum-dist) * 0.01; // 1% accuracy target
+			}
+			thresh = Math.max(thresh, 0.0001);
+
+			var cyl0 = ColBuilder.offset(ColBuilder.cylinder(rad0, height0, 41), p0, 42);
+			var cyl1 = ColBuilder.offset(ColBuilder.cylinder(rad1, height1, 43), p1, 44);
+			res = coll.testCollision(cyl0, cyl1, true);
+			Assert.isTrue(res.collides);
+			// calculate expected relative distance
+
+			var checkFail = Check.point(diff.x, diff.y, diff.z, res.vec, thresh);
+			// var err = new Point();
+			// if (!res.collides || checkFail) {
+			// 	err = diff.sub(res.vec);
+			// 	var res2 = coll.testCollision(cyl0, cyl1, true);
 			// }
 			numTests++;
 		}

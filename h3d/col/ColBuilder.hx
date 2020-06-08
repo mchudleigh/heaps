@@ -27,6 +27,10 @@ class ColBuilder {
 	public static function transform(col, mat, id): ConvexCollider {
 		return new TransformCol(col, mat, id);
 	}
+	public static function offset(col, offset, id): ConvexCollider {
+		var ptCol = new PointCol(offset, -id);
+		return new CompoundCol([col, ptCol], id);
+	}
 
 
 	// An origin centered cube of given dimensions
@@ -37,14 +41,14 @@ class ColBuilder {
 		return new CompoundCol([xCol,yCol,zCol],id);
 	}
 	// A Z aligned capsule (length is center to center, not tip to tip)
-	public static function capsule(radius, len, id) {
+	public static function capsule(radius:Float, len:Float, id) {
 		var spCol = new SphereCol(new Point(0,0,0), radius, -id);
 		var lnCol = new LineCol(new Point(0,0,len/2), new Point(0,0,-len/2), -id);
 		return new CompoundCol([spCol, lnCol], id);
 	}
 
 	// A Z aligned cylinder
-	public static function cylinder(radius, len, id) {
+	public static function cylinder(radius:Float, len:Float, id) {
 		var spCol = new CircleCol(new Point(0,0,0), new Point(0,0,1), radius, -id);
 		var lnCol = new LineCol(new Point(0,0,len/2), new Point(0,0,-len/2), -id);
 		return new CompoundCol([spCol, lnCol], id);

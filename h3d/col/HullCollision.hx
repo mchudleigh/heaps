@@ -104,7 +104,6 @@ class HullCollision {
 			vLenMinPDotV = vLenSq-pDotV;
 			relSqVLenSq = REL*REL*vLenSq;
 			if (	vLenSq > 0.000000001 &&
-					simp.length > 1 &&
 					vLenMinPDotV < relSqVLenSq) {
 				// More precise no-collision condition
 				return new ColRes(false, v);
@@ -112,7 +111,7 @@ class HullCollision {
 			// Check if p is already in the simplex
 			for (sp in simp) {
 				var d = p.sub(sp).length();
-				if (vLenSq > 0.000000001 && d < 0.0001) {
+				if (vLenSq > 0.000000001 && d < tol) {
 					// This point is in the simplex
 					return new ColRes(false, v);
 				}
@@ -139,7 +138,7 @@ class HullCollision {
 			var lastV = v;
 			v = distRes.point();
 			vDiff.setSub(lastV, v);
-			vDiffAccum = vDiff.lengthSq() + vDiffAccum / 2;
+			vDiffAccum = vDiff.lengthSq() + vDiffAccum * 0.5;
 			if (vDiffAccum < tol){
 				// This has settled without triggering the other
 				// termination conditions
@@ -151,13 +150,14 @@ class HullCollision {
 
 		// Collision, run EPA to find the penetration vector
 
-		var gjkSimp = [];
-		for (s in simp) {
-			gjkSimp.push(s.clone());
-		}
-		var gjkPoints = simp.length;
-		var gjkRes = dist(gjkSimp);
-		var gjkP = gjkRes.point();
+		// Debug vars
+		// var gjkSimp = [];
+		// for (s in simp) {
+		// 	gjkSimp.push(s.clone());
+		// }
+		// var gjkPoints = simp.length;
+		// var gjkRes = dist(gjkSimp);
+		// var gjkP = gjkRes.point();
 
 		if (loopCount == MAX_LOOP) {
 			return new ColRes(false, v);
@@ -170,7 +170,9 @@ class HullCollision {
 		// Add support points until the simplex has 4 points
 		// The goal is not to get closer to the origin, but rather full enclose
 		// the origin (the bigger the better) being on a face or edge is fine
+		var loopCount = 0;
 		while(simp.length != 4) {
+			if (loopCount++ > 5) break;
 			switch (simp.length) {
 				case 2: {
 					// Get support points from the 4 normal dirs to the edge
@@ -276,9 +278,14 @@ class HullCollision {
 		}
 		var dRes = dist(simp);
 
-		var penVect = EPA.run(simp, c0, c1);
-		loopCount += EPA.getLastLoops();
-		return new ColRes(true, penVect);
+		try {
+			var penVect = EPA.run(simp, c0, c1);
+			loopCount += EPA.getLastLoops();
+			return new ColRes(true, penVect);
+		} catch(err:Dynamic) {
+			// Treat as a glancing collision
+			return new ColRes(true, new Point(0,0,0));
+		}
 	}
 
 	// Sign comparison that intentionally fails for 0 and NaN
