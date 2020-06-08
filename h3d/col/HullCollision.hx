@@ -45,7 +45,7 @@ class ColRes {
 }
 
 class HullCollision {
-	static final  MAX_LOOP = 100;
+	static final  MAX_LOOP = 1000;
 	static final REL = 0.01;
 
 	var loopCount: Int;
@@ -86,6 +86,8 @@ class HullCollision {
 		var pDotV = 0.0;
 		var vLenMinPDotV = 0.0;
 		var relSqVLenSq = 0.0;
+		var vDiffAccum = 0.0; // A low-pass accumulator of the v difference
+		var vDiff = new Point();
 		while(loopCount < MAX_LOOP) {
 			c0.support(-v.x, -v.y, -v.z, sup0);
 			c1.support( v.x,  v.y,  v.z, sup1);
@@ -101,8 +103,9 @@ class HullCollision {
 			}
 			vLenMinPDotV = vLenSq-pDotV;
 			relSqVLenSq = REL*REL*vLenSq;
-			if (vLenSq > 0.000000001 && vLenMinPDotV < relSqVLenSq) {
-			//if (vLenSq-pDotV < REL*vLenSq) {
+			if (	vLenSq > 0.000000001 &&
+					simp.length > 1 &&
+					vLenMinPDotV < relSqVLenSq) {
 				// More precise no-collision condition
 				return new ColRes(false, v);
 			}
@@ -133,7 +136,16 @@ class HullCollision {
 				// the size of the simplex, consider this a grazing collision)
 				break;
 			}
+			var lastV = v;
 			v = distRes.point();
+			vDiff.setSub(lastV, v);
+			vDiffAccum = vDiff.lengthSq() + vDiffAccum / 2;
+			if (vDiffAccum < tol){
+				// This has settled without triggering the other
+				// termination conditions
+				return new ColRes(false, v);
+			}
+
 			loopCount++;
 		}
 
@@ -147,8 +159,6 @@ class HullCollision {
 		var gjkRes = dist(gjkSimp);
 		var gjkP = gjkRes.point();
 
-		// TODO: Add incremental progress metric
-		// to detect stuck states before MAX_LOOP iterations
 		if (loopCount == MAX_LOOP) {
 			return new ColRes(false, v);
 		}

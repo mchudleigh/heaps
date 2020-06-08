@@ -142,4 +142,10 @@ class Point {
 		return 'Point{${x.fmt()},${y.fmt()},${z.fmt()}}';
 	}
 
+	// No-allocation operations
+	public function setSub(p0: Point, p1:Point) {
+		this.x = p0.x - p1.x;
+		this.y = p0.y - p1.y;
+		this.z = p0.z - p1.z;
+	}
 }

@@ -289,7 +289,7 @@ class CollisionTest extends utest.Test {
 		}
 
 		var numTests = 0;
-		while (numTests < 50) {
+		while (numTests < 500) {
 			// Generate random spheres and make sure they do not collide
 			// Random vals on [-5,5]
 			var p0 = getRandPt(-5,5);
@@ -301,7 +301,7 @@ class CollisionTest extends utest.Test {
 			var radSum = rad0 + rad1;
 			var diff = p0.sub(p1);
 			var dist = diff.length();
-			if (radSum+0.01 > dist) {
+			if (radSum+0.001 > dist) {
 				// collision, skip it
 				continue;
 			}
@@ -315,15 +315,16 @@ class CollisionTest extends utest.Test {
 			var dLen = diff.length();
 			var thresh = Math.max(dLen*0.011, 0.001); // Actual setting is 0.01
 
-			// if (res.collides || Check.point(diff.x, diff.y, diff.z, res.vec, thresh)) {
-			// 	var res2 = coll.testCollision(sp0, sp1, true);
-			// }
+			var checkFail = Check.point(diff.x, diff.y, diff.z, res.vec, thresh);
+			if (res.collides || checkFail) {
+				var res2 = coll.testCollision(sp0, sp1, true);
+			}
 			numTests++;
 		}
 		numTests = 0;
 		//return;
 		// Generate 50 collisions
-		while(numTests < 50) {
+		while(numTests < 500) {
 			var p0 = getRandPt(-5,5);
 			var p1 = getRandPt(-5,5);
 
@@ -344,10 +345,10 @@ class CollisionTest extends utest.Test {
 			res = coll.testCollision(sp0, sp1, true);
 			var numLoops = coll.getLastLoopCount();
 			Assert.isTrue(res.collides);
-			Check.point(diff.x, diff.y, diff.z, res.vec, 0.05);
-			// if (!res.collides || Check.point(diff.x, diff.y, diff.z, res.vec, 0.05)) {
-			// 	var res2 = coll.testCollision(sp0, sp1, true);
-			// }
+			var checkFail = Check.point(diff.x, diff.y, diff.z, res.vec, 0.05);
+			if (!res.collides || checkFail) {
+				var res2 = coll.testCollision(sp0, sp1, true);
+			}
 			numTests++;
 		}
 	}
