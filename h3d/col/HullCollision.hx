@@ -267,10 +267,9 @@ class HullCollision {
 						n.scale(-1.0*p1DotN);
 						return new ColRes(true, n);
 					}
-					// TODO: take the point that contains the origin
-					// (not the furthest point)
-					simp.push((p0DotN > p1DotN) ? p0: p1);
-
+					// Include the point that contains the origin the best
+					var posN = simp[0].dot(n);
+					simp.push((posN > 0) ? p0: p1);
 				}
 				default: throw "impossible";
 			}

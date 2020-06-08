@@ -74,7 +74,7 @@ class EPA implements h3d.col.ExpHullUser {
 			// 	continue;
 			// }
 
-			if(hasDegenFace && v.length() < 0.00000000001) {
+			if(hasDegenFace && v.length() < 0.00001) {
 				// This is a face that contains the origin
 				// replace v with the face's normal and mark this face as
 				// possible invalid
@@ -92,7 +92,7 @@ class EPA implements h3d.col.ExpHullUser {
 			points.push(p);
 
 			if (suspectDegen) {
-				if (Math.abs(v.dot(p)) < 0.0000001) {
+				if (Math.abs(v.dot(p)) < 0.00001) {
 					// This is legitimately a surface face
 					ret.push(new NewFaceRes(0, pInd, true, false));
 				} else {

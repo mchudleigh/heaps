@@ -316,9 +316,9 @@ class CollisionTest extends utest.Test {
 			var thresh = Math.max(dLen*0.011, 0.001); // Actual setting is 0.01
 
 			var checkFail = Check.point(diff.x, diff.y, diff.z, res.vec, thresh);
-			if (res.collides || checkFail) {
-				var res2 = coll.testCollision(sp0, sp1, true);
-			}
+			// if (res.collides || checkFail) {
+			// 	var res2 = coll.testCollision(sp0, sp1, true);
+			// }
 			numTests++;
 		}
 		numTests = 0;
@@ -346,9 +346,9 @@ class CollisionTest extends utest.Test {
 			var numLoops = coll.getLastLoopCount();
 			Assert.isTrue(res.collides);
 			var checkFail = Check.point(diff.x, diff.y, diff.z, res.vec, 0.05);
-			if (!res.collides || checkFail) {
-				var res2 = coll.testCollision(sp0, sp1, true);
-			}
+			// if (!res.collides || checkFail) {
+			// 	var res2 = coll.testCollision(sp0, sp1, true);
+			// }
 			numTests++;
 		}
 	}

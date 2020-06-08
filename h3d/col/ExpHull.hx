@@ -122,7 +122,7 @@ interface ExpHullUser {
 
 
 class ExpHull {
-	static final THRESH = 0.0000001;
+	static final THRESH = 0.0000000001;
 
 	public var faceHeap: BinaryHeap;
 	public var faces: Array<ExpFace>;
