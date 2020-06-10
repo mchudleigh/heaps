@@ -218,11 +218,11 @@ class ConvertFNT2BFNT extends Convert {
 }
 
 class ConvertGLTF2HMD extends hxd.fs.Convert {
-	var parseFunc : (String, String, haxe.io.Bytes)->hxd.fmt.gltf.GLTFData;
+	var parseFunc : (String, String, haxe.io.Bytes)->hxd.fmt.gltf.Data;
 	public function new(binary: Bool) {
 		this.parseFunc = binary ?
-			hxd.fmt.gltf.GLTFParser.parseGLB :
-			hxd.fmt.gltf.GLTFParser.parseGLTF;
+			hxd.fmt.gltf.Parser.parseGLB :
+			hxd.fmt.gltf.Parser.parseGLTF;
 
 		super(binary?"glb":"gltf", "hmd");
 	}

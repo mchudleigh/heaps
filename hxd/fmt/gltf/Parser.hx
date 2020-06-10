@@ -2,14 +2,9 @@ package hxd.fmt.gltf;
 
 import haxe.crypto.Base64;
 import h3d.Quat;
-import haxe.EnumFlags;
-import h3d.col.Bounds;
-import hxd.fmt.hmd.Data;
-import hxd.fmt.gltf.SeqIntMap;
 import h3d.Vector;
 import haxe.Json;
-import hxd.fmt.hmd.Data;
-import hxd.fmt.gltf.GLTFData;
+import hxd.fmt.gltf.Data;
 import hxd.fmt.gltf.Util;
 
 private enum abstract ComponentType(Int) {
@@ -164,13 +159,13 @@ private typedef GLTFSrcData = {
 	animations:Null<Array<Animation>>,
 }
 
-class GLTFParser {
+class Parser {
 	public var srcData:GLTFSrcData;
 	public var name:String;
 	public var localDir:String;
 	public var binChunk:haxe.io.Bytes;
 
-	public var outData: GLTFData;
+	public var outData: Data;
 
 	public function new(name, localDir, file:haxe.io.Bytes, ?binChunk:haxe.io.Bytes) {
 		this.name = name;
@@ -179,7 +174,7 @@ class GLTFParser {
 
 		this.srcData = Json.parse(file.getString(0, file.length));
 
-		this.outData = new GLTFData();
+		this.outData = new Data();
 
 		// Fixup node names before building the skin
 		for (nodeInd in 0...srcData.nodes.length) {
@@ -462,7 +457,7 @@ class GLTFParser {
 				}
 			}
 			var length = endTime - startTime;
-			var numFrames = Std.int(length * GLTFData.SAMPLE_RATE);
+			var numFrames = Std.int(length * Data.SAMPLE_RATE);
 
 			function sampleCurve(sampId, numComps, isQuat) {
 				var samp = anim.samplers[sampId];
@@ -476,7 +471,7 @@ class GLTFParser {
 				var vals1 = new Array();
 				vals1.resize(numComps);
 				for (f in 0...numFrames) {
-					var time = startTime+f*(1/GLTFData.SAMPLE_RATE);
+					var time = startTime+f*(1/Data.SAMPLE_RATE);
 					var samp = interpAnimSample(inAcc, time);
 					if (samp.ind1 == -1) {
 						for (i in 0...numComps) {
@@ -713,7 +708,7 @@ class GLTFParser {
 	}
 
 	public static function parseGLTF(name, localDir, file:haxe.io.Bytes) {
-		var parser = new GLTFParser(name, localDir, file);
+		var parser = new Parser(name, localDir, file);
 		return parser.getData();
 	}
 
@@ -744,7 +739,7 @@ class GLTFParser {
 			Debug.assert(binType == "BIN");
 			binBytes = file.sub(binChunkStart+8,binChunkLen);
 		}
-		var parser = new GLTFParser(name, localDir, jsonBytes, binBytes);
+		var parser = new Parser(name, localDir, jsonBytes, binBytes);
 		return parser.getData();
 	}
 }

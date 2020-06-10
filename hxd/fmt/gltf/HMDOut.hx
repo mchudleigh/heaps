@@ -7,16 +7,16 @@ import hxd.fmt.hmd.Data;
 
 import hxd.Debug;
 
-import hxd.fmt.gltf.GLTFData;
+import hxd.fmt.gltf.Data;
 
 
 class HMDOut {
 
-	var gltfData: GLTFData;
+	var gltfData: Data;
 	var name: String;
 	var relDir: String;
 
-	public function new(name:String, relDir:String, data: GLTFData) {
+	public function new(name:String, relDir:String, data: Data) {
 		this.name = name;
 		this.relDir = relDir;
 		this.gltfData = data;
@@ -333,7 +333,7 @@ class HMDOut {
 			anim.name = animData.name;
 			anim.props = null;
 			anim.frames = animData.numFrames;
-			anim.sampling = GLTFData.SAMPLE_RATE;
+			anim.sampling = Data.SAMPLE_RATE;
 			anim.speed = 1.0;
 			anim.loop = false;
 			anim.objects = [];
@@ -405,7 +405,7 @@ class HMDOut {
 		#if hmd_version
 		ret.version = Std.parseInt(#if macro haxe.macro.Context.definedValue("hmd_version") #else haxe.macro.Compiler.getDefine("hmd_version") #end);
 		#else
-		ret.version = Data.CURRENT_VERSION;
+		ret.version = hxd.fmt.hmd.Data.CURRENT_VERSION;
 		#end
 		ret.props = null;
 		ret.materials = materials;
@@ -503,7 +503,7 @@ class HMDOut {
 		return ret;
 	}
 
-	public static function emitHMD(name:String, relDir:String, data: GLTFData) {
+	public static function emitHMD(name:String, relDir:String, data: Data) {
 		var out = new HMDOut(name, relDir,data);
 		return out.toHMD();
 	}

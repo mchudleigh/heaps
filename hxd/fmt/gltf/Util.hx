@@ -1,12 +1,12 @@
 package hxd.fmt.gltf;
 
-import hxd.fmt.gltf.GLTFData;
+import hxd.fmt.gltf.Data;
 
 class Util {
 
 	// retrieve the float value from an accessor for a specified
 	// entry (eg: vertex) and component (eg: x)
-	public inline static function getFloat(data: GLTFData, buffAcc:BuffAccess, entry:Int, comp:Int):Float {
+	public inline static function getFloat(data: Data, buffAcc:BuffAccess, entry:Int, comp:Int):Float {
 		var buff = data.bufferData[buffAcc.bufferInd];
 		Debug.assert(buffAcc.compSize == 4);
 		var pos = buffAcc.offset + (entry * buffAcc.stride) + comp * 4;
@@ -14,7 +14,7 @@ class Util {
 		return buff.getFloat(pos);
 	}
 
-	public inline static function getUShort(data: GLTFData, buffAcc:BuffAccess, entry:Int, comp:Int):Int {
+	public inline static function getUShort(data: Data, buffAcc:BuffAccess, entry:Int, comp:Int):Int {
 		var buff = data.bufferData[buffAcc.bufferInd];
 		Debug.assert(buffAcc.compSize == 2);
 		var pos = buffAcc.offset + (entry * buffAcc.stride) + comp * 2;
@@ -22,7 +22,7 @@ class Util {
 		return buff.getUInt16(pos);
 	}
 
-	public static function getMatrix(data: GLTFData, buffAcc:BuffAccess, entry:Int): h3d.Matrix {
+	public static function getMatrix(data: Data, buffAcc:BuffAccess, entry:Int): h3d.Matrix {
 		var floats = [];
 		for (i in 0...16) {
 			floats[i] = getFloat(data, buffAcc, entry, i);
@@ -51,7 +51,7 @@ class Util {
 	}
 
 	// retrieve the scalar int from a buffer access
-	public static inline function getIndex(data: GLTFData, buffAcc:BuffAccess, entry:Int):Int {
+	public static inline function getIndex(data: Data, buffAcc:BuffAccess, entry:Int):Int {
 		var buff = data.bufferData[buffAcc.bufferInd];
 		var pos = buffAcc.offset + (entry * buffAcc.stride);
 		Debug.assert(pos < buffAcc.maxPos);
