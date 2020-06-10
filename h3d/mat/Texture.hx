@@ -1,6 +1,8 @@
 package h3d.mat;
 import h3d.mat.Data;
 
+typedef RelTex = { ext:String, pos:Int, len:Int }
+
 @:allow(h3d)
 class Texture {
 
@@ -571,5 +573,33 @@ class Texture {
 		var colorVal = Std.parseInt(colorStr);
 		return Texture.fromColor(colorVal);
 
+	}
+
+	static var relPat = ~/^(...)@([0-9]+)--([0-9]+)$/;
+	static var relExtPat = ~/(PNG|JPG|GIF|TGA)/;
+
+	public static function isRelTex(val: String): Bool {
+
+		var matched = relPat.match(val);
+		if (!matched) {
+			return false;
+		}
+
+		var ext = relPat.matched(0);
+		return relExtPat.match(ext);
+	}
+
+	public static function getRelTex(val:String): RelTex {
+		if (!relPat.match(val)) {
+			throw '"${val}" is not a relative resource string';
+		}
+
+		var ext = relPat.matched(1);
+		if (!relExtPat.match(ext)) {
+			throw 'Unknown extension: ${ext} in relative resource string';
+		}
+		var pos = relPat.matched(2);
+		var len = relPat.matched(3);
+		return {ext:ext.toLowerCase(), pos:Std.parseInt(pos), len:Std.parseInt(len)};
 	}
 }

@@ -27,9 +27,14 @@ class SkinData {
 	public function new() {}
 }
 
+enum TextureData {
+	File(fileName:String);
+	Buffer(buff:Int,pos:Int,len:Int,ext:String);
+}
+
 class MaterialData {
 	public var color:Null<Int>;
-	public var colorTex:String;
+	public var colorTex:TextureData;
 
 	public var name:String;
 

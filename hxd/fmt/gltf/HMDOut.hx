@@ -227,13 +227,22 @@ class HMDOut {
 			}
 		}
 
+		var inlineImages = [];
 		var materials = [];
-		for (mat in gltfData.mats) {
+		for (matInd in 0...gltfData.mats.length) {
+			var mat = gltfData.mats[matInd];
 			var hMat = new hxd.fmt.hmd.Material();
 			hMat.name = mat.name;
 
 			if (mat.colorTex != null) {
-				hMat.diffuseTexture = relDir + mat.colorTex;
+				switch(mat.colorTex) {
+					case File(fileName):
+						hMat.diffuseTexture = relDir + fileName;
+					case Buffer(buff, pos, len, ext): {
+						inlineImages.push(
+							{ buff:buff, pos:pos, len:len, ext:ext, mat:matInd });
+					}
+				}
 			} else if (mat.color != null) {
 				hMat.diffuseTexture = h3d.mat.Texture.toColorString(mat.color);
 			} else {
@@ -380,6 +389,16 @@ class HMDOut {
 			}
 			anims.push(anim);
 
+		}
+
+		// Append any inline images to the binary data
+		for (img in inlineImages) {
+			// Generate a new texture string using the relative-texture format
+			var mat = materials[img.mat];
+			mat.diffuseTexture = '${img.ext}@${outBytes.length}--${img.len}';
+
+			var imageBytes = gltfData.bufferData[img.buff].sub(img.pos, img.len);
+			outBytes.writeBytes(imageBytes, 0, img.len);
 		}
 
 		var ret = new hxd.fmt.hmd.Data();

@@ -53,16 +53,35 @@ class ModelCache {
 	}
 
 	public function loadTexture( model : hxd.res.Model, texturePath ) : h3d.mat.Texture {
-		if(Texture.isColorString(texturePath)) {
-			return Texture.fromColorString(texturePath);
-		}
-
 		var fullPath = texturePath;
 		if(model != null)
 			fullPath = model.entry.path + "@" + fullPath;
 		var t = textures.get(fullPath);
 		if( t != null )
 			return t;
+
+		if(Texture.isColorString(texturePath)) {
+			var tex = Texture.fromColorString(texturePath);
+			textures.set(fullPath, tex);
+			return tex;
+		}
+		if (Texture.isRelTex(texturePath)) {
+			// Special encoding for a texture embedded in a model's binary data
+			var relTex = Texture.getRelTex(texturePath);
+			var modelBytes = model.entry.getBytes();
+			if (relTex.pos+relTex.len >= modelBytes.length) {
+				throw "Relative texture past end of parent resource";
+			}
+			var dataPos = loadLibrary(model).header.dataPosition; // Should hit the cache
+
+			var texBytes = modelBytes.sub(dataPos + relTex.pos, relTex.len);
+			var filename = fullPath+"."+relTex.ext;
+			var texRes = hxd.res.Any.fromBytes(filename, texBytes);
+			var tex = texRes.toTexture();
+			textures.set(fullPath, tex);
+			return tex;
+		}
+
 		var tres;
 		try {
 			tres = hxd.res.Loader.currentInstance.load(texturePath);
