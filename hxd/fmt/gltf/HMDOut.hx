@@ -5,6 +5,8 @@ import h3d.Vector;
 import h3d.col.Bounds;
 import hxd.fmt.hmd.Data;
 
+import hxd.Debug;
+
 import hxd.fmt.gltf.GLTFData;
 
 
