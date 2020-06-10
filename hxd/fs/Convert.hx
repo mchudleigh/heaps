@@ -218,8 +218,13 @@ class ConvertFNT2BFNT extends Convert {
 }
 
 class ConvertGLTF2HMD extends hxd.fs.Convert {
-	public function new() {
-		super("gltf", "hmd");
+	var parseFunc : (String, String, haxe.io.Bytes)->hxd.fmt.gltf.GLTFData;
+	public function new(binary: Bool) {
+		this.parseFunc = binary ?
+			hxd.fmt.gltf.GLTFParser.parseGLB :
+			hxd.fmt.gltf.GLTFParser.parseGLTF;
+
+		super(binary?"glb":"gltf", "hmd");
 	}
 
 	override function convert() {
@@ -235,14 +240,8 @@ class ConvertGLTF2HMD extends hxd.fs.Convert {
 			relPath = localPath.substr(baseDir.length);
 		}
 		try {
-// <<<<<<< HEAD
-// 			final gltf = new hxd.fmt.gltf.GLTFParser(name, localPath, relPath, srcBytes);
-// 			final hmdOut = new hxd.fmt.gltf.HMDOut(name, relPath, gltf.getData());
-// =======
-			final parser = new hxd.fmt.gltf.GLTFParser(name, localPath, srcBytes);
-			final hmdOut = new hxd.fmt.gltf.HMDOut(name, relPath, parser.getData());
-// >>>>>>> ea12f55d... Support loading GLB files
-			var hmd = hmdOut.toHMD();
+			var gltfData = parseFunc(name, localPath, srcBytes);
+			var hmd = hxd.fmt.gltf.HMDOut.emitHMD(name, relPath, gltfData);
 			var out = new haxe.io.BytesOutput();
 			new hxd.fmt.hmd.Writer(out).write(hmd);
 			save(out.getBytes());
@@ -251,39 +250,8 @@ class ConvertGLTF2HMD extends hxd.fs.Convert {
 
 	}
 
-	static var _ = hxd.fs.Convert.register(new ConvertGLTF2HMD());
-
-}
-
-class ConvertGLB2HMD extends hxd.fs.Convert {
-	public function new() {
-		super("glb", "hmd");
-	}
-
-	override function convert() {
-
-		var splitPath = srcPath.split("/");
-		var name = splitPath[splitPath.length - 1];
-
-		var localPath = srcPath.substr(0, srcPath.length-name.length);
-
-		var relPath = "";
-		// Find the path relative to the assets dir
-		if (localPath.indexOf(baseDir) == 0) {
-			relPath = localPath.substr(baseDir.length);
-		}
-		try {
-			final parser = hxd.fmt.gltf.GLTFParser.parseGLB(name, localPath, srcBytes);
-			final hmdOut = new hxd.fmt.gltf.HMDOut(name, relPath, parser.getData());
-			var hmd = hmdOut.toHMD();
-			var out = new haxe.io.BytesOutput();
-			new hxd.fmt.hmd.Writer(out).write(hmd);
-			save(out.getBytes());
-		}
-		catch( e : Dynamic ) throw Std.string(e) + " in " + srcPath;
-	}
-
-	static var _ = hxd.fs.Convert.register(new ConvertGLB2HMD());
+	static var glbConv = hxd.fs.Convert.register(new ConvertGLTF2HMD(true));
+	static var gltfConv = hxd.fs.Convert.register(new ConvertGLTF2HMD(false));
 
 }
 
