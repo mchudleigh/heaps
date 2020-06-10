@@ -168,14 +168,14 @@ class GLTFParser {
 	public var srcData:GLTFSrcData;
 	public var name:String;
 	public var localDir:String;
-	public var relDir:String;
+	public var binChunk:haxe.io.Bytes;
 
 	public var outData: GLTFData;
 
-	public function new(name, localDir, relDir, file:haxe.io.Bytes) {
+	public function new(name, localDir, file:haxe.io.Bytes, ?binChunk:haxe.io.Bytes) {
 		this.name = name;
 		this.localDir = localDir;
-		this.relDir = relDir;
+		this.binChunk = binChunk;
 
 		this.srcData = Json.parse(file.getString(0, file.length));
 
@@ -206,11 +206,19 @@ class GLTFParser {
 	function loadBuffers() {
 		// Read all files
 		var buffers = srcData.buffers;
-		for (buf in buffers) {
+		for (bufInd in 0...buffers.length) {
+			var buf = buffers[bufInd];
+
 			var buffBytes;
 			var base64Pat = ~/^data:(.*);base64,/;
-			var uriStart = buf.uri.substr(0,60);
-			if (base64Pat.match(uriStart)) {
+			var uriStart = buf.uri != null ? buf.uri.substr(0,60) : "GLB buffer";
+			if (buf.uri == null) {
+				// GLB binary chunk
+				Debug.assert(bufInd == 0);
+				Debug.assert(binChunk != null);
+				buffBytes = binChunk;
+
+			} else if (base64Pat.match(uriStart)) {
 				// This is a base64 encoded buffer, decode it
 				var dataStart = buf.uri.indexOf(";base64,") + 8;
 				buffBytes = Base64.decode(buf.uri.substr(dataStart));
@@ -218,8 +226,8 @@ class GLTFParser {
 				buffBytes = sys.io.File.getBytes(localDir + buf.uri);
 			}
 			// TODO: better URI handling
-			if (buf.byteLength < buffBytes.length) {
-				throw 'Buffer: ${buf.uri} is too small. Expected: ${buf.byteLength} bytes';
+			if (buffBytes.length < buf.byteLength) {
+				throw 'Buffer: ${uriStart} is too small. Expected: ${buf.byteLength} bytes';
 			}
 			outData.bufferData.push(buffBytes);
 		}
@@ -702,5 +710,35 @@ class GLTFParser {
 
 	public function getData() {
 		return outData;
+	}
+
+	public static function parseGLB(name, localDir, file:haxe.io.Bytes) {
+		// Read header
+		var magic = file.getString(0, 4);
+		Debug.assert(magic == "glTF");
+		var fileVer = file.getInt32(4);
+		Debug.assert(fileVer == 2);
+		var fileLen = file.getInt32(8);
+		Debug.assert(fileLen <= file.length);
+
+		var jsonChunkStart = 12;
+		// Read the JSON chunk
+		var jsonChunkLen = file.getInt32(jsonChunkStart);
+		Debug.assert(fileLen >= jsonChunkStart+8+jsonChunkLen);
+		var jsonType = file.getString(jsonChunkStart+4,4);
+		Debug.assert(jsonType == "JSON");
+		var jsonBytes = file.sub(jsonChunkStart+8,jsonChunkLen);
+
+		// Optional binary chunk
+		var binChunkStart = jsonChunkStart + jsonChunkLen + 8;
+		var binBytes = null;
+		if (binChunkStart<fileLen) {
+			var binChunkLen = file.getInt32(binChunkStart);
+			Debug.assert(fileLen >= binChunkStart+8+binChunkLen);
+			var binType = file.getString(binChunkStart+4,3);
+			Debug.assert(binType == "BIN");
+			binBytes = file.sub(binChunkStart+8,binChunkLen);
+		}
+		return new GLTFParser(name, localDir, jsonBytes, binBytes);
 	}
 }

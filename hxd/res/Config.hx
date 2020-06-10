@@ -18,7 +18,7 @@ class Config {
 	**/
 	public static var extensions = [
 		"jpg,png,jpeg,gif,tga" => "hxd.res.Image",
-		"fbx,hmd,obj,gltf" => "hxd.res.Model",
+		"fbx,hmd,obj,gltf,glb" => "hxd.res.Model",
 		"ttf" => "hxd.res.Font",
 		"fnt" => "hxd.res.BitmapFont",
 		"wav,mp3,ogg" => "hxd.res.Sound",

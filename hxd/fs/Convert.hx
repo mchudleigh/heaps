@@ -235,8 +235,13 @@ class ConvertGLTF2HMD extends hxd.fs.Convert {
 			relPath = localPath.substr(baseDir.length);
 		}
 		try {
-			final gltf = new hxd.fmt.gltf.GLTFParser(name, localPath, relPath, srcBytes);
-			final hmdOut = new hxd.fmt.gltf.HMDOut(name, relPath, gltf.getData());
+// <<<<<<< HEAD
+// 			final gltf = new hxd.fmt.gltf.GLTFParser(name, localPath, relPath, srcBytes);
+// 			final hmdOut = new hxd.fmt.gltf.HMDOut(name, relPath, gltf.getData());
+// =======
+			final parser = new hxd.fmt.gltf.GLTFParser(name, localPath, srcBytes);
+			final hmdOut = new hxd.fmt.gltf.HMDOut(name, relPath, parser.getData());
+// >>>>>>> ea12f55d... Support loading GLB files
 			var hmd = hmdOut.toHMD();
 			var out = new haxe.io.BytesOutput();
 			new hxd.fmt.hmd.Writer(out).write(hmd);
@@ -247,6 +252,38 @@ class ConvertGLTF2HMD extends hxd.fs.Convert {
 	}
 
 	static var _ = hxd.fs.Convert.register(new ConvertGLTF2HMD());
+
+}
+
+class ConvertGLB2HMD extends hxd.fs.Convert {
+	public function new() {
+		super("glb", "hmd");
+	}
+
+	override function convert() {
+
+		var splitPath = srcPath.split("/");
+		var name = splitPath[splitPath.length - 1];
+
+		var localPath = srcPath.substr(0, srcPath.length-name.length);
+
+		var relPath = "";
+		// Find the path relative to the assets dir
+		if (localPath.indexOf(baseDir) == 0) {
+			relPath = localPath.substr(baseDir.length);
+		}
+		try {
+			final parser = hxd.fmt.gltf.GLTFParser.parseGLB(name, localPath, srcBytes);
+			final hmdOut = new hxd.fmt.gltf.HMDOut(name, relPath, parser.getData());
+			var hmd = hmdOut.toHMD();
+			var out = new haxe.io.BytesOutput();
+			new hxd.fmt.hmd.Writer(out).write(hmd);
+			save(out.getBytes());
+		}
+		catch( e : Dynamic ) throw Std.string(e) + " in " + srcPath;
+	}
+
+	static var _ = hxd.fs.Convert.register(new ConvertGLB2HMD());
 
 }
 
