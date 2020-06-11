@@ -38,6 +38,14 @@ class Vector {
 		return new Vector(x + v.x, y + v.y, z + v.z, w + v.w);
 	}
 
+	public inline function incr( v : Vector, incW = false ) {
+		x += v.x;
+		y += v.y;
+		z += v.z;
+		if (incW)
+			w+= v.w;
+	}
+
 	// note : cross product is left-handed
 	public inline function cross( v : Vector ) {
 		return new Vector(y * v.z - z * v.y, z * v.x - x * v.z,  x * v.y - y * v.x, 1);
@@ -241,7 +249,7 @@ class Vector {
 		else {
 			var d = max - min;
 			s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-			if(max == r) 
+			if(max == r)
 				h = (g - b) / d + (g < b ? 6.0 : 0.0);
 			else if(max == g)
 				h = (b - r) / d + 2.0;
