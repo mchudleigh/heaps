@@ -477,4 +477,56 @@ class CollisionTest extends utest.Test {
 			numTests++;
 		}
 	}
+	// Test a number of cube on square collisions to validate mesh based GJK
+	function testCubeSquareCollisions() {
+		var coll = new HullCollision();
+		var res;
+
+
+		// A cube on [-1,+1] on all axis
+		var cube = ColBuilder.cube(2,2,2, 1);
+
+		// A square rotated 45 on the X,Y plane,
+		// Extreme points are +/-2 on X and Y
+		var diamond = ColBuilder.compound([
+			ColBuilder.line(new Point(1,1,0), new Point(-1,-1,0), -1),
+			ColBuilder.line(new Point(-1,1,0), new Point(1,-1,0), -1),
+		], 2);
+
+		var transDiamond;
+		// Translate the diamond to avoid a collision (point-face)
+		transDiamond = ColBuilder.offset(diamond, new Point(3.5, 0,0), 3);
+		res = coll.testCollision(cube, transDiamond, true);
+		Assert.isTrue(coll.getLastLoopCount() < 5);
+		Assert.isFalse(res.collides);
+
+		var checkFail = Check.point(-0.5, 0, 0, res.vec, 0.00001);
+		// if (res.collides || checkFail) {
+		// 	var res2 = coll.testCollision(cube, transDiamond, true);
+		// }
+
+		// Translate the diamond to cause a collision (point-face)
+		transDiamond = ColBuilder.offset(diamond, new Point(2.5, 0,0), 3);
+		res = coll.testCollision(cube, transDiamond, true);
+		Assert.isTrue(coll.getLastLoopCount() < 10);
+		Assert.isTrue(res.collides);
+
+		checkFail = Check.point(0.5, 0, 0, res.vec, 0.00001);
+
+		// Translate the diamond to avoid a collision (edge-edge)
+		transDiamond = ColBuilder.offset(diamond, new Point(2.5, 2.5,0), 3);
+		res = coll.testCollision(cube, transDiamond, true);
+		Assert.isTrue(coll.getLastLoopCount() < 5);
+		Assert.isFalse(res.collides);
+
+		checkFail = Check.point(-0.5, -0.5, 0, res.vec, 0.00001);
+		// Translate the diamond to cause a collision (edge-edge)
+		transDiamond = ColBuilder.offset(diamond, new Point(1.5, 1.5,0), 3);
+		res = coll.testCollision(cube, transDiamond, true);
+		Assert.isTrue(coll.getLastLoopCount() < 10);
+		Assert.isTrue(res.collides);
+
+		checkFail = Check.point(0.5, 0.5, 0, res.vec, 0.00001);
+
+	}
 }

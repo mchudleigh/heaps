@@ -170,9 +170,9 @@ class HullCollision {
 		// Add support points until the simplex has 4 points
 		// The goal is not to get closer to the origin, but rather full enclose
 		// the origin (the bigger the better) being on a face or edge is fine
-		var loopCount = 0;
+		var simpLoopCount = 0;
 		while(simp.length != 4) {
-			if (loopCount++ > 5) break;
+			if (simpLoopCount++ > 5) break;
 			switch (simp.length) {
 				case 2: {
 					// Get support points from the 4 normal dirs to the edge
