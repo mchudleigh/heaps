@@ -1,11 +1,21 @@
 package htst;
 
+import h3d.col.ConvexCollider;
 import h3d.col.Point;
 import utest.Assert;
 import h3d.col.HullBuilder;
 import h3d.col.ConvexHull;
 import h3d.col.HullCollision;
 import h3d.col.ColBuilder;
+
+typedef ColInfo = {
+	collides:Bool,
+	x:Float,
+	y:Float,
+	z:Float,
+	?maxLoops:Int,
+	?thresh:Float,
+}
 
 class CollisionTest extends utest.Test {
 
@@ -191,6 +201,40 @@ class CollisionTest extends utest.Test {
 
 	}
 
+	function checkCol(
+			coll:HullCollision, c0:ConvexCollider, c1:ConvexCollider,
+			ci:ColInfo, ?pos:haxe.PosInfos) {
+
+		// Imprecise test
+		var roughRes = coll.testCollision(c0, c1, false);
+		if (ci.collides) {
+			Assert.isTrue(roughRes.collides, "Imprecise collision not detected", pos);
+		} else {
+			Assert.isFalse(roughRes.collides, "Unexpected imprecise collision", pos);
+		}
+		if (roughRes.collides != ci.collides) {
+			var roughRes2 = coll.testCollision(c0, c1, false);
+		}
+
+		var res = coll.testCollision(c0, c1, true);
+		if (ci.collides) {
+			Assert.isTrue(res.collides, "Collision not detected", pos);
+		} else {
+			Assert.isFalse(res.collides, "Unexpected collision", pos);
+		}
+
+		var thresh = (ci.thresh != null) ? ci.thresh : 0.0001;
+		// calculate expected relative distance
+		var checkFail = Check.point(ci.x, ci.y, ci.z, res.vec, thresh, pos);
+		if (res.collides != ci.collides || checkFail) {
+			var res2 = coll.testCollision(c0, c1, true);
+		}
+		var loops = coll.getLastLoopCount();
+		if (ci.maxLoops != null) {
+			Assert.isTrue(loops <= ci.maxLoops, 'Collision exceeded max loops: $loops of max ${ci.maxLoops}', pos);
+		}
+	}
+
 	function testSphereGJK() {
 		// Test collision based on some simple sphere geometry
 		var sph0 = ColBuilder.sphere(new Point(1,0,0), 1.0, 0);
@@ -214,72 +258,80 @@ class CollisionTest extends utest.Test {
 		var coll = new HullCollision();
 		var res;
 
+		function cc(c0, c1, ci: ColInfo, ?pos:haxe.PosInfos) {
+			checkCol(coll, c0, c1, ci, pos);
+		}
+
 		cube = ColBuilder.cube(2,3,5, 1);
 
 		pt = ColBuilder.point(new Point(0.05,0,2.49), 2);
-		res = coll.testCollision(cube, pt, true);
-		Assert.isTrue(res.collides);
-		Check.point(0,0,0.01, res.vec);
-		Assert.isTrue(coll.getLastLoopCount() < 20);
+		cc(cube,pt,{
+			collides:true,
+			x:0,y:0,z:0.01,
+			maxLoops:10});
 
 		pt = ColBuilder.point(new Point(0.0,0,2.49), 2);
-		res = coll.testCollision(cube, pt, true);
-		Assert.isTrue(res.collides);
-		Check.point(0,0,0.01, res.vec);
-		Assert.isTrue(coll.getLastLoopCount() < 20);
+		cc(cube,pt,{
+			collides:true,
+			x:0,y:0,z:0.01,
+			maxLoops:10});
 
 		pt = ColBuilder.point(new Point(0.0,0,2.5), 2);
-		res = coll.testCollision(cube, pt, true);
-		Assert.isTrue(res.collides);
-		Check.point(0,0,0, res.vec);
-		Assert.isTrue(coll.getLastLoopCount() < 20);
+		cc(cube,pt,{
+			collides:true,
+			x:0,y:0,z:0,
+			maxLoops:10});
 
 		pt = ColBuilder.point(new Point(0.05,0,2.50), 2);
-		res = coll.testCollision(cube, pt, true);
-		Assert.isTrue(res.collides);
-		Check.point(0,0,0, res.vec);
-		Assert.isTrue(coll.getLastLoopCount() < 20);
+		cc(cube,pt,{
+			collides:true,
+			x:0,y:0,z:0,
+			maxLoops:10});
 
 		pt = ColBuilder.point(new Point(0,1,2.55), 2);
-		res = coll.testCollision(cube, pt, true);
-		Assert.isFalse(res.collides);
-		Check.point(0,0,-0.05, res.vec);
-		Assert.isTrue(coll.getLastLoopCount() < 20);
+		cc(cube,pt,{
+			collides:false,
+			x:0,y:0,z:-0.05,
+			maxLoops:10});
 
 		// Corner collision
 		pt = ColBuilder.point(new Point(0.99,1.45,2.45), 2);
-		res = coll.testCollision(cube, pt, true);
-		Assert.isTrue(res.collides);
-		Check.point(0.01,0,0, res.vec);
-		Assert.isTrue(coll.getLastLoopCount() < 20);
+		cc(cube,pt,{
+			collides:true,
+			x:0.01,y:0,z:0,
+			maxLoops:10});
 
 		// Corner miss
 		pt = ColBuilder.point(new Point(0.99,1.5,2.51), 2);
-		res = coll.testCollision(cube, pt, true);
-		Assert.isFalse(res.collides);
-		Check.point(0.0,0,-0.01, res.vec);
-		Assert.isTrue(coll.getLastLoopCount() < 20);
+		cc(cube,pt,{
+			collides:false,
+			x:0,y:0,z:-0.01,
+			maxLoops:10});
 
 		// A 1,1,1 cube on the z axis
 		var cube2 = ColBuilder.compound([
 			ColBuilder.cube(1,1,1, 42),
 			ColBuilder.point(new Point(0,0,2.5), 43)
 		], 44);
-		res = coll.testCollision(cube, cube2, true);
-		Assert.isTrue(res.collides);
-		Check.point(0,0,0.5, res.vec);
-		Assert.isTrue(coll.getLastLoopCount() < 20);
+		cc(cube,cube2,{
+			collides:true,
+			x:0,y:0,z:0.5,
+			maxLoops:10});
 
 		var sphere = ColBuilder.sphere(new Point(0,0,2.5),0.5, 42);
-		res = coll.testCollision(cube, sphere, true);
-		Assert.isTrue(res.collides);
-		Check.point(0,0,0.5, res.vec);
-		Assert.isTrue(coll.getLastLoopCount() < 20);
+		cc(cube,sphere,{
+			collides:true,
+			x:0,y:0,z:0.5,
+			maxLoops:20});
 
 	}
 	function testRandomSphereCol() {
 		var coll = new HullCollision();
 		var res;
+
+		function cc(c0, c1, ci: ColInfo, ?pos:haxe.PosInfos) {
+			checkCol(coll, c0, c1, ci, pos);
+		}
 
 		function getRandPt(min,max): Point {
 			var x = (max-min)*Math.random() + min;
@@ -315,13 +367,12 @@ class CollisionTest extends utest.Test {
 			var dLen = diff.length();
 			var thresh = Math.max(dLen*0.011, 0.001); // Actual setting is 0.01
 
-			res = coll.testCollision(sp0, sp1, true);
-			Assert.isFalse(res.collides);
-			// calculate expected relative distance
-			var checkFail = Check.point(diff.x, diff.y, diff.z, res.vec, thresh);
-			// if (res.collides || checkFail) {
-			// 	var res2 = coll.testCollision(sp0, sp1, true);
-			// }
+			cc(sp0,sp1,{
+				collides:false,
+				x:diff.x,y:diff.y,z:diff.z,
+				thresh:thresh});
+
+
 			var lastLoops = coll.getLastLoopCount();
 			totalLoops += lastLoops;
 			totLoopsSq += lastLoops*lastLoops;
@@ -355,15 +406,11 @@ class CollisionTest extends utest.Test {
 			var thresh = Math.max((radSum-dist)*0.01, 0.001); // 1% accuracy target
 			var sp0 = ColBuilder.sphere(p0, rad0, 1);
 			var sp1 = ColBuilder.sphere(p1, rad1, 1);
-			res = coll.testCollision(sp0, sp1, true);
-			var numLoops = coll.getLastLoopCount();
-			Assert.isTrue(res.collides);
-			var checkFail = Check.point(diff.x, diff.y, diff.z, res.vec, thresh);
-			// var err = new Point();
-			// if (!res.collides || checkFail) {
-			// 	err = diff.sub(res.vec);
-			// 	var res2 = coll.testCollision(sp0, sp1, true);
-			// }
+
+			cc(sp0,sp1,{
+				collides:true,
+				x:diff.x,y:diff.y,z:diff.z,
+				thresh:thresh});
 			numTests++;
 		}
 	}
@@ -371,6 +418,10 @@ class CollisionTest extends utest.Test {
 	function testRandomCylinderCol() {
 		var coll = new HullCollision();
 		var res;
+
+		function cc(c0, c1, ci: ColInfo, ?pos:haxe.PosInfos) {
+			checkCol(coll, c0, c1, ci, pos);
+		}
 
 		function getRandPtXY(min,max): Point {
 			var x = (max-min)*Math.random() + min;
@@ -403,16 +454,14 @@ class CollisionTest extends utest.Test {
 			diff.scale(dist-rad0-rad1);
 			var cyl0 = ColBuilder.offset(ColBuilder.cylinder(rad0, height0, 41), p0, 42);
 			var cyl1 = ColBuilder.offset(ColBuilder.cylinder(rad1, height1, 43), p1, 44);
-			res = coll.testCollision(cyl0, cyl1, true);
-			Assert.isFalse(res.collides);
-			// calculate expected relative distance
 			var dLen = diff.length();
 			var thresh = Math.max(dLen*0.011, 0.001); // Actual setting is 0.01
 
-			var checkFail = Check.point(diff.x, diff.y, diff.z, res.vec, thresh);
-			// if (res.collides || checkFail) {
-			// 	var res2 = coll.testCollision(cyl0, cyl1, true);
-			// }
+			cc(cyl0,cyl1,{
+				collides:false,
+				x:diff.x,y:diff.y,z:diff.z,
+				thresh:thresh});
+
 			var lastLoops = coll.getLastLoopCount();
 			totalLoops += lastLoops;
 			totLoopsSq += lastLoops*lastLoops;
@@ -464,16 +513,11 @@ class CollisionTest extends utest.Test {
 
 			var cyl0 = ColBuilder.offset(ColBuilder.cylinder(rad0, height0, 41), p0, 42);
 			var cyl1 = ColBuilder.offset(ColBuilder.cylinder(rad1, height1, 43), p1, 44);
-			res = coll.testCollision(cyl0, cyl1, true);
-			Assert.isTrue(res.collides);
-			// calculate expected relative distance
+			cc(cyl0,cyl1,{
+				collides:true,
+				x:diff.x,y:diff.y,z:diff.z,
+				thresh:thresh});
 
-			var checkFail = Check.point(diff.x, diff.y, diff.z, res.vec, thresh);
-			// var err = new Point();
-			// if (!res.collides || checkFail) {
-			// 	err = diff.sub(res.vec);
-			// 	var res2 = coll.testCollision(cyl0, cyl1, true);
-			// }
 			numTests++;
 		}
 	}
@@ -482,6 +526,9 @@ class CollisionTest extends utest.Test {
 		var coll = new HullCollision();
 		var res;
 
+		function cc(c0, c1, ci: ColInfo, ?pos:haxe.PosInfos) {
+			checkCol(coll, c0, c1, ci, pos);
+		}
 
 		// A cube on [-1,+1] on all axis
 		var cube = ColBuilder.cube(2,2,2, 1);
@@ -496,37 +543,35 @@ class CollisionTest extends utest.Test {
 		var transDiamond;
 		// Translate the diamond to avoid a collision (point-face)
 		transDiamond = ColBuilder.offset(diamond, new Point(3.5, 0,0), 3);
-		res = coll.testCollision(cube, transDiamond, true);
-		Assert.isTrue(coll.getLastLoopCount() < 5);
-		Assert.isFalse(res.collides);
-
-		var checkFail = Check.point(-0.5, 0, 0, res.vec, 0.00001);
-		// if (res.collides || checkFail) {
-		// 	var res2 = coll.testCollision(cube, transDiamond, true);
-		// }
+		cc(cube,transDiamond,{
+			collides:false,
+			x:-0.5,y:0,z:0,
+			maxLoops:5,
+			thresh:0.00001});
 
 		// Translate the diamond to cause a collision (point-face)
 		transDiamond = ColBuilder.offset(diamond, new Point(2.5, 0,0), 3);
-		res = coll.testCollision(cube, transDiamond, true);
-		Assert.isTrue(coll.getLastLoopCount() < 10);
-		Assert.isTrue(res.collides);
-
-		checkFail = Check.point(0.5, 0, 0, res.vec, 0.00001);
+		cc(cube,transDiamond,{
+			collides:true,
+			x:0.5,y:0,z:0,
+			maxLoops:10,
+			thresh:0.00001});
 
 		// Translate the diamond to avoid a collision (edge-edge)
 		transDiamond = ColBuilder.offset(diamond, new Point(2.5, 2.5,0), 3);
-		res = coll.testCollision(cube, transDiamond, true);
-		Assert.isTrue(coll.getLastLoopCount() < 5);
-		Assert.isFalse(res.collides);
+		cc(cube,transDiamond,{
+			collides:false,
+			x:-0.5,y:-0.5,z:0,
+			maxLoops:5,
+			thresh:0.00001});
 
-		checkFail = Check.point(-0.5, -0.5, 0, res.vec, 0.00001);
 		// Translate the diamond to cause a collision (edge-edge)
 		transDiamond = ColBuilder.offset(diamond, new Point(1.5, 1.5,0), 3);
-		res = coll.testCollision(cube, transDiamond, true);
-		Assert.isTrue(coll.getLastLoopCount() < 10);
-		Assert.isTrue(res.collides);
-
-		checkFail = Check.point(0.5, 0.5, 0, res.vec, 0.00001);
+		cc(cube,transDiamond,{
+			collides:true,
+			x:0.5,y:0.5,z:0,
+			maxLoops:10,
+			thresh:0.00001});
 
 	}
 }

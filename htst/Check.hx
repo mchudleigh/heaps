@@ -5,7 +5,7 @@ import utest.Assert;
 class Check {
 	public static function point(x, y, z, p, eps = 0.00001, ?pos:haxe.PosInfos):Bool {
 		Assert.floatEquals(x, p.x, eps, 'X component wrong. Expected: $x Got: ${p.x}', pos);
-		Assert.floatEquals(y, p.y, eps, 'Y component wrong. Expected: $y Got: ${p.x}', pos);
+		Assert.floatEquals(y, p.y, eps, 'Y component wrong. Expected: $y Got: ${p.y}', pos);
 		Assert.floatEquals(z, p.z, eps, 'Z component wrong. Expected: $z Got: ${p.z}', pos);
 
 		return Math.abs(x-p.x) > eps ||Math.abs(y-p.y) > eps ||Math.abs(z-p.z) > eps;

@@ -97,7 +97,7 @@ class HullCollision {
 			vLenSq = v.lengthSq();
 
 			pDotV = p.dot(v);
-			if (!precise && pDotV > 0) {
+			if (!precise && pDotV > tol) {
 				// Fast, but imprecise no-collision condition
 				return new ColRes(false, v);
 			}
@@ -148,6 +148,9 @@ class HullCollision {
 			loopCount++;
 		}
 
+		if (!precise) {
+			return new ColRes(true, v); // Don't run EPA, assume V is good enough
+		}
 		// Collision, run EPA to find the penetration vector
 
 		// Debug vars
