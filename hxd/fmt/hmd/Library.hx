@@ -410,11 +410,11 @@ class Library {
 		return points;
 	}
 
-	public function makeHullVis(scene, maxFaces = 100) {
+	public function makeHullVis(maxFaces = 100) {
 		// Make a visualization of the convex hull
 		var points = getStaticPoints();
 		var hull = h3d.col.HullBuilder.buildHull(points, maxFaces);
-		var mesh = h3d.prim.HullDebug.getHullMesh(hull, scene);
+		var mesh = h3d.prim.HullDebug.getHullMesh(hull);
 		return mesh;
 	}
 

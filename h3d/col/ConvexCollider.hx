@@ -125,6 +125,32 @@ class LineCol implements ConvexCollider {
 	}
 
 }
+class HullCol implements ConvexCollider {
+	final hull: ConvexHull;
+	final id:Int;
+	final temp: Vector;
+	public function new(hull, id) {
+		this.hull = hull;
+		this.id = id;
+		temp = new Vector();
+	}
+	public function getID():Int {
+		return id;
+	}
+
+	public function support(x:Float,y:Float,z:Float, out:Point) {
+		temp.x = x; temp.y = y; temp.z = z;
+		var p = hull.support(temp);
+		out.x = p.x; out.y = p.y; out.z = p.z;
+	}
+
+	public function startPoint(): Point {
+		temp.x = 1; temp.y = 0; temp.z = 0;
+		return hull.support(temp).toPoint();
+	}
+
+}
+
 
 class CompoundCol implements ConvexCollider {
 	final subCols:Array<ConvexCollider>;

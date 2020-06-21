@@ -5,9 +5,9 @@ package h3d;
 // Lie group and is well suited to rigid body dynamics (plus scale)
 // Application is as listed for column vetors (ie: tranlation is outermost/last)
 class TRSTrans {
-	var scale: Float;
-	var trans: Vector;
-	var rot: Quat;
+	public var scale: Float;
+	public var trans: Vector;
+	public var rot: Quat;
 
 	public function new(t, r, s) {
 		this.trans = t;
@@ -59,6 +59,9 @@ class TRSTrans {
 		return new TRSTrans(tInv, rInv, sInv);
 	}
 
+	public function clone() {
+		return new TRSTrans(trans.clone(), rot.clone(), scale);
+	}
 
 	public static function fromTrans(trans: Vector): TRSTrans {
 		return new TRSTrans(trans.clone(), new Quat(), 1.0);

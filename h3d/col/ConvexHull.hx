@@ -15,6 +15,7 @@ class ConvexHull {
 	// Conveniently, this is also basically the index array for rendering triangles
 	public var faces: Array<Int>;
 
+	public var radius: Float;
 	// Derived Data --------
 	// Everything below can be derived from points and faces above
 
@@ -53,6 +54,13 @@ class ConvexHull {
 
 		if (VALIDATE)
 			validate();
+
+		// Calc radius
+		var maxLenSq = -1.0;
+		for (p in points) {
+			maxLenSq = Math.max(maxLenSq, p.lengthSq());
+		}
+		radius = Math.sqrt(maxLenSq);
 	}
 
 	function calcPointFaces() {
@@ -126,7 +134,7 @@ class ConvexHull {
 		}
 	}
 
-	function support(dir: Vector): Vector {
+	public function support(dir: Vector): Vector {
 		var p = -1;
 		// Choose a starting point based on the 6 cardinal directions
 		if (dir.x > 0.0 && dir.x > dir.y && dir.x > dir.z) {
@@ -160,7 +168,7 @@ class ConvexHull {
 					bestDot = dot;
 				}
 			}
-			if (bestDot < 0.000001) {
+			if (bestDot < 0.0000000001) {
 				return curP;
 			}
 			curP = bestP;
@@ -168,13 +176,14 @@ class ConvexHull {
 	}
 
 	function calcSuppPoints() {
-		suppPX = supportImp(new Vector( 1.0, 0.0, 0.0), 0);
-		suppPY = supportImp(new Vector( 0.0, 1.0, 0.0), 0);
-		suppPZ = supportImp(new Vector( 0.0, 0.0, 1.0), 0);
+		var initPoint = faces[0];
+		suppPX = supportImp(new Vector( 1.0, 0.0, 0.0), initPoint);
+		suppPY = supportImp(new Vector( 0.0, 1.0, 0.0), initPoint);
+		suppPZ = supportImp(new Vector( 0.0, 0.0, 1.0), initPoint);
 
-		suppNX = supportImp(new Vector(-1.0, 0.0, 0.0), 0);
-		suppNY = supportImp(new Vector( 0.0,-1.0, 0.0), 0);
-		suppNZ = supportImp(new Vector( 0.0, 0.0,-1.0), 0);
+		suppNX = supportImp(new Vector(-1.0, 0.0, 0.0), initPoint);
+		suppNY = supportImp(new Vector( 0.0,-1.0, 0.0), initPoint);
+		suppNZ = supportImp(new Vector( 0.0, 0.0,-1.0), initPoint);
 	}
 
 	function validate() {

@@ -4,6 +4,7 @@ import h3d.col.ConvexCollider.PointCol;
 import h3d.col.ConvexCollider.SphereCol;
 import h3d.col.ConvexCollider.CircleCol;
 import h3d.col.ConvexCollider.LineCol;
+import h3d.col.ConvexCollider.HullCol;
 import h3d.col.ConvexCollider.CompoundCol;
 import h3d.col.ConvexCollider.TransformCol;
 
@@ -20,6 +21,9 @@ class ColBuilder {
 	}
 	public static function line(p0, p1, id): ConvexCollider {
 		return new LineCol(p0, p1, id);
+	}
+	public static function hull(hull, id): ConvexCollider {
+		return new HullCol(hull, id);
 	}
 	public static function compound(subCols, id): ConvexCollider {
 		return new CompoundCol(subCols, id);

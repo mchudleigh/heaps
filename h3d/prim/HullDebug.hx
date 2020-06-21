@@ -20,12 +20,17 @@ class HullDebug {
 		hullMat.shadows = false;
 	}
 
-	public static function getHullMesh(hull: ConvexHull, scene: Scene) {
-		initHullMat();
+	public static function getHullPrimitive(hull: ConvexHull) {
 		var prim = hull.toPolygon();
 		prim.unindex();
 		prim.addNormals();
 		prim.addUVs();
+		return prim;
+	}
+
+	public static function getHullMesh(hull: ConvexHull) {
+		initHullMat();
+		var prim = getHullPrimitive(hull);
 
 		var obj = new h3d.scene.Mesh(prim, hullMat);
 		return obj;
@@ -36,7 +41,7 @@ class HullDebug {
 	// ConvexHull of the provided points
 	// This is a terrible idea for collision detection but useful
 	// for visualization
-	public static function colliderToMesh(col: ConvexCollider, scene, numSamples = 1000, numFaces = 100) {
+	public static function colliderToMesh(col: ConvexCollider, numSamples = 1000, numFaces = 100) {
 		var points = [];
 		while (points.length < numSamples) {
 			var x = 2*Math.random() -1; // Random on (-1,1)
@@ -52,7 +57,7 @@ class HullDebug {
 		}
 
 		var hull = HullBuilder.buildHull(points, numFaces);
-		return getHullMesh(hull, scene);
+		return getHullMesh(hull);
 	}
 
 }
