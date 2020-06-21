@@ -205,15 +205,19 @@ class CollisionTest extends utest.Test {
 			coll:HullCollision, c0:ConvexCollider, c1:ConvexCollider,
 			ci:ColInfo, ?pos:haxe.PosInfos) {
 
+		var ciLen = Math.sqrt(ci.x*ci.x+ci.y*ci.y+ci.z*ci.z);
 		// Imprecise test
-		var roughRes = coll.testCollision(c0, c1, false);
-		if (ci.collides) {
-			Assert.isTrue(roughRes.collides, "Imprecise collision not detected", pos);
-		} else {
-			Assert.isFalse(roughRes.collides, "Unexpected imprecise collision", pos);
-		}
-		if (roughRes.collides != ci.collides) {
-			var roughRes2 = coll.testCollision(c0, c1, false);
+		if (ciLen > 0.001) {
+			 // Avoid imprecise tests for near collisions (it's not that accurate)
+			var roughRes = coll.testCollision(c0, c1, false);
+			if (ci.collides) {
+				Assert.isTrue(roughRes.collides, "Imprecise collision not detected", pos);
+			} else {
+				Assert.isFalse(roughRes.collides, "Unexpected imprecise collision", pos);
+			}
+			if (roughRes.collides != ci.collides) {
+				var roughRes2 = coll.testCollision(c0, c1, false);
+			}
 		}
 
 		var res = coll.testCollision(c0, c1, true);
@@ -232,6 +236,9 @@ class CollisionTest extends utest.Test {
 		var loops = coll.getLastLoopCount();
 		if (ci.maxLoops != null) {
 			Assert.isTrue(loops <= ci.maxLoops, 'Collision exceeded max loops: $loops of max ${ci.maxLoops}', pos);
+			if (loops > ci.maxLoops) {
+				var res2 = coll.testCollision(c0, c1, true);
+			}
 		}
 	}
 
@@ -367,11 +374,14 @@ class CollisionTest extends utest.Test {
 			var dLen = diff.length();
 			var thresh = Math.max(dLen*0.011, 0.001); // Actual setting is 0.01
 
+			// Because spheres can be unstable for GJK, also bump up the threshold
+			// to 0.5% of the sphere radius
+			thresh = Math.max(thresh, rad0*0.005);
+			thresh = Math.max(thresh, rad1*0.005);
 			cc(sp0,sp1,{
 				collides:false,
 				x:diff.x,y:diff.y,z:diff.z,
 				thresh:thresh});
-
 
 			var lastLoops = coll.getLastLoopCount();
 			totalLoops += lastLoops;
@@ -385,9 +395,9 @@ class CollisionTest extends utest.Test {
 		Assert.isTrue(averageLoops < 10.0);
 
 		numTests = 0;
-		//return;
-		// Generate 50 collisions
-		while(numTests < 50) {
+
+		// Generate random collisions
+		while(numTests < 500) {
 			var p0 = getRandPt(-5,5);
 			var p1 = getRandPt(-5,5);
 

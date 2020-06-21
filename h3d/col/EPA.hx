@@ -26,7 +26,6 @@ class EPA implements h3d.col.ExpHullUser {
 
 	static var lastLoops = 0;
 	var numLoops = 0;
-	var hasDegenFace = false;
 
 	public function new(startSimp: Array<Point>, col0: ConvexCollider, col1: ConvexCollider) {
 		this.points = startSimp.copy();
@@ -36,7 +35,6 @@ class EPA implements h3d.col.ExpHullUser {
 
 		Debug.assert(startSimp.length == 4);
 
-		hasDegenFace = true;
 		var startInds = [0,1,2,3];
 		// Test that the faces wind correctly
 		var p = Plane.fromPoints(points[0], points[1], points[2]);
@@ -61,59 +59,20 @@ class EPA implements h3d.col.ExpHullUser {
 			var simp = [points[f.verts[0]], points[f.verts[1]], points[f.verts[2]]];
 			var res = HullCollision.dist2D(simp);
 
-			var suspectDegen = false;
-
 			var v = res.point();
 			tempFacePoints[i] = v;
-			// if (res.simp.length != 3 && v.length() > 0.001) {
-			// 	// This triangle does not contain the origin
-			// 	// and is "on edge" to the origin so it can not contain the
-			// 	// closest point, push a "skip" result
-			// 	// Note: this is optional, so the threshold is quite loose
-			// 	ret.push(new NewFaceRes(Math.POSITIVE_INFINITY, -1, false, true));
-			// 	continue;
-			// }
 
-			if(hasDegenFace && v.length() < 0.00001) {
-				// This is a face that contains the origin
-				// replace v with the face's normal and mark this face as
-				// possible invalid
-				suspectDegen = true;
-				var d0 = simp[1].sub(simp[0]);
-				var d1 = simp[2].sub(simp[0]);
-				v = d0.cross(d1);
-				v.normalize();
-			}
+			var n = f.getNormal();
 
-			col0.support( v.x,  v.y,  v.z, sup0);
-			col1.support(-v.x, -v.y, -v.z, sup1);
+			col0.support( n.x,  n.y,  n.z, sup0);
+			col1.support(-n.x, -n.y, -n.z, sup1);
 			var p = sup0.sub(sup1);
 			var pInd = points.length;
 			points.push(p);
 
-			if (suspectDegen) {
-				if (Math.abs(v.dot(p)) < 0.00001) {
-					// This is legitimately a surface face
-					ret.push(new NewFaceRes(0, pInd, true, false));
-				} else {
-					// Not legitimate, push at highest priority
-					ret.push(new NewFaceRes(-1, pInd, false, false));
-				}
-				continue;
-			}
-			var projV = v.clone();
-			projV.normalize();
+			var pDist = f.dist(pInd);
 
-			// Find the component of p parallel to v
-			var vScale = projV.dot(p);
-			projV.scale(vScale);
-
-			var pvX = projV.x;
-			var pvY = projV.y;
-			var pvZ = projV.z;
-
-			var vDiff = v.sub(projV).length();
-			ret.push(new NewFaceRes(v.length(), pInd, vDiff < THRESH, false));
+			ret.push(new NewFaceRes(v.length(), pInd, pDist < THRESH));
 			var res2 = HullCollision.dist2D(simp);
 		}
 

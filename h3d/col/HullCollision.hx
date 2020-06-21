@@ -97,7 +97,7 @@ class HullCollision {
 			vLenSq = v.lengthSq();
 
 			pDotV = p.dot(v);
-			if (!precise && pDotV > tol) {
+			if (!precise && pDotV > 1000*tol) {
 				// Fast, but imprecise no-collision condition
 				return new ColRes(false, v);
 			}
@@ -233,10 +233,15 @@ class HullCollision {
 						n1.scale(-1.0*p3DotN);
 						return new ColRes(true, n1);
 					}
-					// Otherwise add the furthest 2 points
-					simp.push((p0DotN > p1DotN) ? p0: p1);
-					simp.push((p2DotN > p2DotN) ? p2: p3);
-
+					// Otherwise add the furthest point and loop
+					if (p0DotN > p1DotN && p0DotN > p2DotN && p0DotN > p3DotN)
+						simp.push(p0);
+					else if (p1DotN > p2DotN && p1DotN > p3DotN)
+						simp.push(p1);
+					else if (p2DotN > p3DotN)
+						simp.push(p2);
+					else
+						simp.push(p3);
 				}
 				case 3: {
 					// project a ray in both normals to the simplex
@@ -244,7 +249,7 @@ class HullCollision {
 					var v0 = simp[1].sub(simp[0]);
 					var v1 = simp[2].sub(simp[0]);
 					var n = v0.cross(v1);
-					if (n.lengthSq() < 0.0000001) {
+					if (n.lengthSq() < 0.0000000001) {
 						// Colinear, drop a point and return to the 2-simplex case
 
 						// This should be very unlikely though
@@ -274,7 +279,7 @@ class HullCollision {
 					}
 					// Include the point that contains the origin the best
 					var posN = simp[0].dot(n);
-					simp.push((posN > 0) ? p0: p1);
+					simp.push((posN > 0) ? p1: p0);
 				}
 				default: throw "impossible";
 			}
@@ -293,7 +298,7 @@ class HullCollision {
 
 	// Sign comparison that intentionally fails for 0 and NaN
 	static inline function compSigns(v0:Float, v1:Float) {
-		return ((v0>0 && v1>0.0000001) || (v0<0 && v1<-0.0000001));
+		return ((v0>0 && v1>0.00000001) || (v0<0 && v1<-0.00000001));
 	}
 
 	static function dist(simp:Array<Point>): DistRes {

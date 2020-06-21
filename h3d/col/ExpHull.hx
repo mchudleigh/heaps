@@ -79,6 +79,12 @@ class ExpFace {
 	public function getEdge(i: Int) {
 		return edges[i];
 	}
+	public function getNormal(): Point {
+		var d0 = points[verts[0]].sub(points[verts[1]]);
+		var d1 = points[verts[0]].sub(points[verts[2]]);
+		var norm = d0.cross(d1);
+		return norm.normalize();
+	}
 	public function validate() {
 		// Validate adjacency info
 		for (i in 0...3) {
@@ -105,12 +111,10 @@ class NewFaceRes {
 	public var priority: Float;
 	public var point: Int;
 	public var term: Bool;
-	public var skip: Bool;
-	public function new(pri, point, term, skip) {
+	public function new(pri, point, term) {
 		this.priority = pri;
 		this.point = point;
 		this.term = term;
-		this.skip = skip;
 	}
 }
 
@@ -210,7 +214,6 @@ class ExpHull {
 	}
 
 	function insertFace(f:ExpFace, fr: NewFaceRes) {
-		if (fr.skip) return;
 
 		f.nextPt = fr.point;
 		f.termFlag = fr.term;

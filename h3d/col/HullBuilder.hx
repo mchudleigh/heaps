@@ -187,7 +187,7 @@ class HullBuilder implements ExpHullUser {
 		}
 
 		return [for (i in 0...newFaces.length)
-			new NewFaceRes(-bestDists[i], bestPts[i], bestPts[i] == -1, false)];
+			new NewFaceRes(-bestDists[i], bestPts[i], bestPts[i] == -1)];
 	}
 
 	public function afterAddFaces(newFaces: Array<ExpFace>) {
