@@ -324,6 +324,12 @@ class Matrix {
 		_44 = a41 * b14 + a42 * b24 + a43 * b34 + a44 * b44;
 	}
 
+	// Multiply, but treat this as a column matrix
+	// This is transitionary code away from heaps conventions to GL conventions
+	public inline function multCols(a, b) {
+		multiply(b,a);
+	}
+
 	public function multiplyValue( v : Float ) {
 		_11 *= v;
 		_12 *= v;

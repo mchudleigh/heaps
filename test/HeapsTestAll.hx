@@ -2,6 +2,7 @@ package;
 
 import htst.CollisionTest;
 import htst.MathTest;
+import htst.MatrixTest;
 import htst.HeapTest;
 
 class HeapsTestAll {
@@ -9,6 +10,7 @@ class HeapsTestAll {
 		return [
 			new CollisionTest(),
 			new MathTest(),
+			new MatrixTest(),
 			new HeapTest(),
 		];
 	}

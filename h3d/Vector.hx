@@ -56,6 +56,11 @@ class Vector {
 		return new Vector(x - k * n.x, y - k * n.y, z - k * n.z, 1);
 	}
 
+	public inline function reflect4( n : Vector ) {
+		var k = 2 * this.dot4(n);
+		return new Vector(x - k * n.x, y - k * n.y, z - k * n.z, w - k * n.w);
+	}
+
 	public inline function dot3( v : Vector ) {
 		return x * v.x + y * v.y + z * v.z;
 	}
@@ -68,8 +73,16 @@ class Vector {
 		return x * x + y * y + z * z;
 	}
 
+	public inline function lengthSq4() {
+		return x * x + y * y + z * z + w * w;
+	}
+
 	public inline function length() {
 		return lengthSq().sqrt();
+	}
+
+	public inline function length4() {
+		return lengthSq4().sqrt();
 	}
 
 	public function normalize() {
@@ -78,6 +91,15 @@ class Vector {
 		x *= k;
 		y *= k;
 		z *= k;
+	}
+
+	public function normalize4() {
+		var k = lengthSq4();
+		if( k < hxd.Math.EPSILON ) k = 0 else k = k.invSqrt();
+		x *= k;
+		y *= k;
+		z *= k;
+		w *= k;
 	}
 
 	public inline function normalizeFast() {

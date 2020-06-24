@@ -137,5 +137,13 @@ class MathTest extends utest.Test {
 		vec.transform(rotXZ.toMatrix());
 		Check.vec3(-2,-3,1, vec);
 
+
+		// Test compound is equivalent to matrix multiply
+		var rotXMat = rotX.toMatrix();
+		var rotZMat = rot.toMatrix();
+		var rotXZMat = rotXZ.toMatrix();
+		var rotTestMat = new Matrix();
+		rotTestMat.multCols(rotXMat, rotZMat);
+		Check.mat4(rotXZMat, rotTestMat);
 	}
 }
