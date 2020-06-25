@@ -127,6 +127,7 @@ interface ExpHullUser {
 
 class ExpHull {
 	static final THRESH = 0.0000000001;
+	public static final VALIDATE = true;
 
 	public var faceHeap: BinaryHeap;
 	public var faces: Array<ExpFace>;
@@ -165,8 +166,10 @@ class ExpHull {
 		f1.adj = [f0,f0,f0];
 		f1.adjRef = [2,1,0];
 
-		f0.validate();
-		f1.validate();
+		if (VALIDATE) {
+			f0.validate();
+			f1.validate();
+		}
 
 		var faceRes = user.onNewFaces([f0,f1]);
 
@@ -196,10 +199,12 @@ class ExpHull {
 		f3.adj = [f0,f2,f1];
 		f3.adjRef = [2,2,1];
 
-		f0.validate();
-		f1.validate();
-		f2.validate();
-		f3.validate();
+		if (VALIDATE) {
+			f0.validate();
+			f1.validate();
+			f2.validate();
+			f3.validate();
+		}
 
 		var faceRes = user.onNewFaces([f0,f1,f2,f3]);
 
@@ -258,7 +263,8 @@ class ExpHull {
 			// This is a planar hull and every face is dead
 			throw "Planar hull";
 		}
-		validateEdgeLoop(edgeLoop);
+		if (VALIDATE)
+			validateEdgeLoop(edgeLoop);
 
 		user.onDeadFaces(deadFaces);
 
@@ -301,9 +307,10 @@ class ExpHull {
 		// Finally close the face loop
 		newFaces[0].adj[2] = lastFace;
 		lastFace.adj[1] = newFaces[0];
-		for (i in 0...newFaces.length) {
-			var face = newFaces[i];
-			face.validate();
+		if (VALIDATE) {
+			for (f in newFaces) {
+				f.validate();
+			}
 		}
 
 		// Call the new face callback
@@ -375,6 +382,13 @@ class ExpHull {
 		}
 		// Check closed
 		Debug.assert(currPt == startPt);
+	}
+
+	public function forEachFace(func: (ExpFace)-> Void) {
+		for (i in faceHeap) {
+			var face = faces[i];
+			func(face);
+		}
 	}
 
 }

@@ -15,6 +15,7 @@ class HullBuilder implements ExpHullUser {
 	// expanding hull (the core of the algorithm)
 	var expHull: ExpHull;
 	var orphans: Array<Int>;
+	var unclaimed: Array<Int>;
 	var init = true;
 	// Points owned by the faces
 	var ownedPoints: Array<Array<Int>>;
@@ -28,9 +29,12 @@ class HullBuilder implements ExpHullUser {
 	function new(ps: Array<Point>, maxFaces) {
 		this.points = ps;
 		this.maxFaces = maxFaces;
+		unclaimed = [];
 
 		initialFaces();
 		mainLoop();
+
+		Debug.assert(unclaimed.length == 0);
 
 		makeHull();
 	}
@@ -103,6 +107,21 @@ class HullBuilder implements ExpHullUser {
 		init = false;
 	}
 
+	// Check if any the unclaimed points are inside the hull
+	// drop them if they are
+	function cleanUnclaimed() {
+		if (unclaimed.length == 0)
+			return;
+		var newUnclaimed = [];
+		for (p in unclaimed) {
+			var outside = false;
+			expHull.forEachFace(f -> {if (f.dist(p) > THRESH) outside = true;});
+			if (outside)
+				newUnclaimed.push(p);
+		}
+		unclaimed = newUnclaimed;
+	}
+
 	function mainLoop() {
 		while(true) {
 			var cont = expHull.iterate();
@@ -112,6 +131,7 @@ class HullBuilder implements ExpHullUser {
 			if (expHull.faceHeap.size() >= maxFaces)
 				return;
 
+			cleanUnclaimed();
 		}
 	}
 
@@ -152,9 +172,8 @@ class HullBuilder implements ExpHullUser {
 			bestPts[i] = -1;
 		}
 
-		// Re parent all the orphans
-		for (p in orphans) {
-			//if (p == currP) continue;
+		// Find the best face for this point, returns true if successful
+		function parentPoint(p): Bool {
 			var bestDist = Math.NEGATIVE_INFINITY;
 			var bestFace = -1;
 			for (i in 0...newFaces.length) {
@@ -170,20 +189,42 @@ class HullBuilder implements ExpHullUser {
 					bestDists[bestFace] = bestDist;
 					bestPts[bestFace] = p;
 				}
-			} else {
+				return true;
+			}
+			return false;
+		}
+
+		// Re parent all the orphans
+		for (p in orphans) {
+			if (!parentPoint(p)) {
 				// If none of the new faces can "see" this point, it's
-				// interior and silently dropped
+				// interior and silently dropped, unless...
 				if (init) {
-					// There is an exception when first building a hull
-					// points that are co-planar with the initial faces still
-					// need to be added so add it to the first face
-					if (tempOwnedPoints[0].length == 0) {
-						bestDists[0] = 0;
-						bestPts[0] = p;
+					// We do not abandon points during initial setup
+					// these points must be in the plane of the initial
+					// triangles. Mark them as unclaimed and eventually find
+					// them a face
+					unclaimed.push(p);
+				} else {
+					// Sanity check: Make sure abandoned points are inside all new faces
+					// This is completely optional (and probably kills performance)
+					if (ExpHull.VALIDATE) {
+						for (f in newFaces) {
+							Debug.assert(f.dist(p) < THRESH);
+						}
 					}
-					tempOwnedPoints[0].push(p);
 				}
 			}
+		}
+		// Try to parent any unclaimed points
+		if (!init && unclaimed.length > 0) {
+			var newUnclaimed = [];
+			for (p in unclaimed) {
+				if (!parentPoint(p)) {
+					newUnclaimed.push(p);
+				}
+			}
+			unclaimed = newUnclaimed;
 		}
 
 		return [for (i in 0...newFaces.length)
