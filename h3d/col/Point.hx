@@ -41,6 +41,12 @@ class Point {
 		return new Point(x + p.x, y + p.y, z + p.z);
 	}
 
+	public inline function inc( p : Point ) {
+		x += p.x;
+		y += p.y;
+		z += p.z;
+	}
+
 	public inline function cross( p : Point ) {
 		return new Point(y * p.z - z * p.y, z * p.x - x * p.z,  x * p.y - y * p.x);
 	}

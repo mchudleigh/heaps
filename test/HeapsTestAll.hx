@@ -4,6 +4,7 @@ import htst.CollisionTest;
 import htst.MathTest;
 import htst.MatrixTest;
 import htst.HeapTest;
+import htst.PhysicsTest;
 
 class HeapsTestAll {
 	public static function getTestList():Array<utest.Test> {
@@ -12,6 +13,7 @@ class HeapsTestAll {
 			new MathTest(),
 			new MatrixTest(),
 			new HeapTest(),
+			new PhysicsTest(),
 		];
 	}
 	public static function main() {
