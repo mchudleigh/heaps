@@ -160,6 +160,7 @@ class MatrixTest extends utest.Test {
 		// that a moment-of-inertia matrix would be generated
 		for (i in 0...10) {
 			var v = randomVec3();
+			v.scale3(0.1);
 			var mat = MatrixTools.getDoubleCrossMat3(v);
 			var matVals = mat.getFloats();
 			for (i in 0...16) {
@@ -169,39 +170,46 @@ class MatrixTest extends utest.Test {
 		var m = new Matrix();
 		m.loadValues(mVals);
 
-		var q = new Matrix();
-		var r = new Matrix();
-		var qAccum = Matrix.I();
+		var eVectMat = Matrix.I();
 		var a = m.clone();
-		for (i in 0...20) {
-			MatrixTools.qr(a, q, r);
-			a.multCols(r,q);
-			qAccum.multCols(qAccum, q);
-		}
 
-		var qAccT = qAccum.clone();
-		qAccT.transpose();
+		var eVals = new Vector();
+		MatrixTools.symmetricEigenQR(m, eVals, eVectMat);
 
+		var a = new Matrix();
+		a._11 = eVals.x;
+		a._22 = eVals.y;
+		a._33 = eVals.z;
+
+		var maxEV = Math.max(Math.abs(eVals.x), Math.abs(eVals.y));
+		maxEV = Math.max(maxEV, Math.abs(eVals.z));
+
+		var eps = maxEV * 0.0001;
+
+		var eVectTrans = eVectMat.clone();
+		eVectTrans.transpose();
+
+		// Test the eigen vectors are orthonormal
 		var testQ = new Matrix();
-		testQ.multCols(qAccT, qAccum);
+		testQ.multCols(eVectTrans, eVectMat);
 		Check.mat3(Matrix.I(), testQ);
 
-		// Test that we can get back to m via q
+		// Test that we can get back to m via the Eigen vector matrix
 		var testA = new Matrix();
-		testA.multCols(a, qAccT);
-		testA.multCols(qAccum, testA); // = Q * A * QT
-		Check.mat3(m, testA);
+		testA.multCols(a, eVectTrans);
+		testA.multCols(eVectMat, testA); // = Q * A * QT
+		Check.mat3(m, testA, eps);
 
-		// Test the columns of Q are eigen vectors of M
-		var eigenVects = MatrixTools.getColumns(qAccum);
-		var eigenVals = [a._11, a._22, a._33];
+		// Test the eigen vector condition
+		var eigenVects = MatrixTools.getColumns(eVectMat);
+		var eigenVals = [eVals.x, eVals.y, eVals.z];
 		for (i in 0...3) {
 			var res = eigenVects[i].clone();
 			res.transform(m);
 			var resLen = res.length();
 			var dot = res.dot3(eigenVects[i]);
 			Assert.floatEquals(eigenVals[i], dot);
-			Assert.floatEquals(Math.abs(eigenVals[i]), resLen, Math.abs(eigenVals[i]*0.001));
+			Assert.floatEquals(Math.abs(eigenVals[i]), resLen, Math.abs(eigenVals[i]*0.0001));
 		}
 	}
 }

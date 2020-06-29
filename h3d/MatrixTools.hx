@@ -1,5 +1,7 @@
 package h3d;
 
+import hxd.Debug;
+
 class MatrixTools {
 
 	// Generate a 4x4 Householder reflection matrix from a normal vector
@@ -64,8 +66,6 @@ class MatrixTools {
 		var q0 = new Matrix();
 		hhRef3(v0, q0);
 
-		//var qAccum = q0.clone();
-
 		var r0 = new Matrix();
 		r0.multCols(q0, m);
 
@@ -93,6 +93,49 @@ class MatrixTools {
 		qOut.multCols(q1, q0);
 		qOut.transpose();
 
+	}
+
+	// Perform an eigen value decomposition of a symmetric 3x3 matrix
+	public static function symmetricEigenQR(m: Matrix, valuesOut: Vector, vectorsOut: Matrix) {
+
+		Debug.assert(m.isSymmetric3());
+		var q = new Matrix();
+		var r = new Matrix();
+		vectorsOut.identity();
+		var a = m.clone();
+
+		var numLoops = 0;
+		while (numLoops < 100) {
+			qr(a, q, r);
+			a.multCols(r,q);
+			// accumulate in the output
+			vectorsOut.multCols(vectorsOut, q);
+
+			var maxEV = Math.max(Math.abs(a._11), Math.abs(a._22));
+			maxEV = Math.max(maxEV, Math.abs(a._33));
+			var eps = maxEV * 0.0001;
+
+			// Test convergence
+			var conv =
+				Math.abs(a._12) < eps &&
+				Math.abs(a._13) < eps &&
+
+				Math.abs(a._21) < eps &&
+				Math.abs(a._23) < eps &&
+
+				Math.abs(a._31) < eps &&
+				Math.abs(a._32) < eps;
+
+			if (conv) break;
+
+			++numLoops;
+		}
+
+		valuesOut.x = a._11;
+		valuesOut.y = a._22;
+		valuesOut.z = a._33;
+
+		return numLoops;
 	}
 
 	// convert this matrix into an array of column vectors

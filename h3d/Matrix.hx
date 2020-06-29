@@ -330,6 +330,28 @@ class Matrix {
 		multiply(b,a);
 	}
 
+	public function isSymmetric3(eps = 0.000001) {
+		var ret = true;
+		ret = ret && Math.abs(_12 - _21) < eps;
+
+		ret = ret && Math.abs(_13 - _31) < eps;
+		ret = ret && Math.abs(_23 - _32) < eps;
+		return ret;
+	}
+
+	public function isSymmetric4(eps = 0.000001) {
+		var ret = true;
+		ret = ret && Math.abs(_12 - _21) < eps;
+
+		ret = ret && Math.abs(_13 - _31) < eps;
+		ret = ret && Math.abs(_23 - _32) < eps;
+
+		ret = ret && Math.abs(_14 - _41) < eps;
+		ret = ret && Math.abs(_24 - _42) < eps;
+		ret = ret && Math.abs(_34 - _43) < eps;
+		return ret;
+	}
+
 	public function multiplyValue( v : Float ) {
 		_11 *= v;
 		_12 *= v;
