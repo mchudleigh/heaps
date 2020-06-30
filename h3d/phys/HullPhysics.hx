@@ -1,27 +1,12 @@
-package h3d.col;
+package h3d.phys;
 
 import h3d.Quat;
+import h3d.col.Point;
+import h3d.col.ConvexHull;
 
 // Utilities to calculate the physical properties of
 // convex hulls (specifically mass, center of mass and
 // moment of inertia)
-
-// The physical proerties of a rigid body (excluding collision)
-class PhysProps {
-
-	public var mass: Float;
-
-	// Center of Mass
-	public var com: Point;
-	public var moi: Matrix;
-
-	// The moment of inertia about the CoM on the principal axis
-	// public var principalMOI: Point;
-	// The rotation for local coords to principal axis
-	// public var principalRot: Quat;
-
-	public function new() {}
-}
 
 class HullPhysics {
 
@@ -128,13 +113,17 @@ class HullPhysics {
 		return { com: comAccum, vol: volAccum, faceVols: faceVols };
 	}
 
-	public static function calcProperties(hull: ConvexHull, density: Float): PhysProps {
+	public static function calcProperties(hull: ConvexHull, density: Float): BodyProps {
 
-		var ret = new PhysProps();
+		var ret = new BodyProps();
 		var com = calcCoM(hull);
 
 		var moi = calcMoI(hull, com.com, com.faceVols);
 		moi.scale(density, density, density);
+
+		// QR decompose the MOI into its principal axies
+
+
 
 		ret.mass = com.vol*density;
 		ret.com = com.com.clone();
@@ -142,5 +131,6 @@ class HullPhysics {
 
 		return ret;
 	}
+
 
 }

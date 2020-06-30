@@ -3,7 +3,7 @@ package htst;
 import h3d.col.Point;
 import h3d.col.HullBuilder;
 import h3d.col.ConvexHull;
-import h3d.col.HullPhysics;
+import h3d.phys.HullPhysics;
 import utest.Assert;
 import htst.Check;
 
@@ -22,7 +22,7 @@ class PhysicsTest extends utest.Test {
 		return HullBuilder.buildHull(pts, 1000);
 	}
 
-	function testHullPhysicalProps() {
+	function testHullBodyProps() {
 
 		var cubeHull = ConvexHull.makeCubeHull();
 		var cubeProps = HullPhysics.calcProperties(cubeHull, 1.0);
