@@ -5,6 +5,7 @@ import h3d.col.Point;
 import utest.Assert;
 import h3d.col.HullBuilder;
 import h3d.col.ConvexHull;
+import h3d.col.HullColPoint;
 import h3d.col.HullCollision;
 import h3d.col.ColBuilder;
 
@@ -35,114 +36,118 @@ class CollisionTest extends utest.Test {
 		Assert.isFalse(builtCube.containsPoint(farPoint));
 	}
 
+	function makeHullPoint(x,y,z) {
+		return new HullColPoint(new Point(x,y,z), new Point());
+	}
+
 	// Test the dist1D function of HullCollision
 	function testHullCollDist1D() {
 		// Check past the simplex
-		var tx0 = new Point(1,1,1);
-		var tx1 = new Point(3,1,1);
+		var tx0 = makeHullPoint(1,1,1);
+		var tx1 = makeHullPoint(3,1,1);
 		var ret =  @:privateAccess HullCollision.dist1D([tx0, tx1]);
 		Check.array([tx0], ret.simp);
 		Check.floatArray([1], ret.barCoords);
-		Check.point(1,1,1, ret.point());
+		Check.point(1,1,1, ret.point().point);
 
 		// Check inside the simplex
-		tx0 = new Point(1,1,1);
-		tx1 = new Point(-3,1,1);
+		tx0 = makeHullPoint(1,1,1);
+		tx1 = makeHullPoint(-3,1,1);
 		ret =  @:privateAccess HullCollision.dist1D([tx0, tx1]);
 		Check.array([tx0, tx1], ret.simp);
 		Check.floatArray([0.75, 0.25], ret.barCoords);
-		Check.point(0,1,1, ret.point());
+		Check.point(0,1,1, ret.point().point);
 
 		// Check degenerate
-		tx0 = new Point(1,1,1);
-		tx1 = new Point(1,1,1);
+		tx0 = makeHullPoint(1,1,1);
+		tx1 = makeHullPoint(1,1,1);
 		ret =  @:privateAccess HullCollision.dist1D([tx0, tx1]);
 		Check.array([tx0], ret.simp);
 		Check.floatArray([1], ret.barCoords);
-		Check.point(1,1,1, ret.point());
+		Check.point(1,1,1, ret.point().point);
 
 		// Check inside the simplex (y axis)
-		tx0 = new Point(1,1,1);
-		tx1 = new Point(1,-3,1);
+		tx0 = makeHullPoint(1,1,1);
+		tx1 = makeHullPoint(1,-3,1);
 		ret =  @:privateAccess HullCollision.dist1D([tx0, tx1]);
 		Check.array([tx0, tx1], ret.simp);
 		Check.floatArray([0.75, 0.25], ret.barCoords);
-		Check.point(1,0,1, ret.point());
+		Check.point(1,0,1, ret.point().point);
 
 		// Check inside the simplex (z axis)
-		tx0 = new Point(1,1,1);
-		tx1 = new Point(1,1,-3);
+		tx0 = makeHullPoint(1,1,1);
+		tx1 = makeHullPoint(1,1,-3);
 		ret =  @:privateAccess HullCollision.dist1D([tx0, tx1]);
 		Check.array([tx0, tx1], ret.simp);
 		Check.floatArray([0.75, 0.25], ret.barCoords);
-		Check.point(1,1,0, ret.point());
+		Check.point(1,1,0, ret.point().point);
 	}
 
 	function testHullCollDist2D() {
 		var p0, p1, p2, ret;
 
 		// Test in simplex (X projection)
-		p0 = new Point(1, -1, -1);
-		p1 = new Point(1, -1,  2);
-		p2 = new Point(1,  2, -1);
+		p0 = makeHullPoint(1, -1, -1);
+		p1 = makeHullPoint(1, -1,  2);
+		p2 = makeHullPoint(1,  2, -1);
 		ret =  @:privateAccess HullCollision.dist2D([p0, p1, p2]);
 		Check.array([p0, p1, p2], ret.simp);
 		Check.floatArray([1/3, 1/3, 1/3], ret.barCoords);
-		Check.point(1,0,0, ret.point());
+		Check.point(1,0,0, ret.point().point);
 
 		// Test in simplex (Y projection)
-		p0 = new Point(-1, 1, -1);
-		p1 = new Point(-1, 1,  2);
-		p2 = new Point( 2, 1, -1);
+		p0 = makeHullPoint(-1, 1, -1);
+		p1 = makeHullPoint(-1, 1,  2);
+		p2 = makeHullPoint( 2, 1, -1);
 		ret =  @:privateAccess HullCollision.dist2D([p0, p1, p2]);
 		Check.array([p0, p1, p2], ret.simp);
 		Check.floatArray([1/3, 1/3, 1/3], ret.barCoords);
-		Check.point(0,1,0, ret.point());
+		Check.point(0,1,0, ret.point().point);
 
 		// Test in simplex (Z projection)
-		p0 = new Point(-1, -1, 1);
-		p1 = new Point(-1,  2, 1);
-		p2 = new Point( 2, -1, 1);
+		p0 = makeHullPoint(-1, -1, 1);
+		p1 = makeHullPoint(-1,  2, 1);
+		p2 = makeHullPoint( 2, -1, 1);
 		ret =  @:privateAccess HullCollision.dist2D([p0, p1, p2]);
 		Check.array([p0, p1, p2], ret.simp);
 		Check.floatArray([1/3, 1/3, 1/3], ret.barCoords);
-		Check.point(0,0,1, ret.point());
+		Check.point(0,0,1, ret.point().point);
 
 		// Test on edge
-		p0 = new Point(1, 1, 1);
-		p1 = new Point(1, 1, 0);
-		p2 = new Point(1, 0, 1);
+		p0 = makeHullPoint(1, 1, 1);
+		p1 = makeHullPoint(1, 1, 0);
+		p2 = makeHullPoint(1, 0, 1);
 		ret =  @:privateAccess HullCollision.dist2D([p0, p1, p2]);
 		Check.array([p1, p2], ret.simp);
 		Check.floatArray([1/2, 1/2], ret.barCoords);
-		Check.point(1,0.5,0.5, ret.point());
+		Check.point(1,0.5,0.5, ret.point().point);
 
 		// Test on point
-		p0 = new Point(1, 2, 1);
-		p1 = new Point(1, 2, 2);
-		p2 = new Point(1, 1, 1);
+		p0 = makeHullPoint(1, 2, 1);
+		p1 = makeHullPoint(1, 2, 2);
+		p2 = makeHullPoint(1, 1, 1);
 		ret =  @:privateAccess HullCollision.dist2D([p0, p1, p2]);
 		Check.array([p2], ret.simp);
 		Check.floatArray([1], ret.barCoords);
-		Check.point(1,1,1, ret.point());
+		Check.point(1,1,1, ret.point().point);
 
 		// Test degenerate as line
-		p0 = new Point(1, 0,  1);
-		p1 = new Point(1, 0,  1);
-		p2 = new Point(1, 2, -1);
+		p0 = makeHullPoint(1, 0,  1);
+		p1 = makeHullPoint(1, 0,  1);
+		p2 = makeHullPoint(1, 2, -1);
 		ret =  @:privateAccess HullCollision.dist2D([p0, p1, p2]);
 		Check.arrayOptions([[p0, p1], p2], ret.simp);
 		Check.floatArray([3/4, 1/4], ret.barCoords);
-		Check.point(1,0.5,0.5, ret.point());
+		Check.point(1,0.5,0.5, ret.point().point);
 
 		// Test degenerate as point
-		p0 = new Point(1, 1, 1);
-		p1 = new Point(1, 1, 1);
-		p2 = new Point(1, 1, 1);
+		p0 = makeHullPoint(1, 1, 1);
+		p1 = makeHullPoint(1, 1, 1);
+		p2 = makeHullPoint(1, 1, 1);
 		ret =  @:privateAccess HullCollision.dist2D([p0, p1, p2]);
 		Check.arrayOptions([[p0,p1,p2]], ret.simp);
 		Check.floatArray([1], ret.barCoords);
-		Check.point(1,1,1, ret.point());
+		Check.point(1,1,1, ret.point().point);
 
 	}
 
@@ -150,54 +155,54 @@ class CollisionTest extends utest.Test {
 		var p0, p1, p2, p3, ret;
 
 		// Test in simplex
-		p0 = new Point(-1, -1, -1);
-		p1 = new Point( 3, -1, -1);
-		p2 = new Point(-1,  3, -1);
-		p3 = new Point(-1, -1,  3);
+		p0 = makeHullPoint(-1, -1, -1);
+		p1 = makeHullPoint( 3, -1, -1);
+		p2 = makeHullPoint(-1,  3, -1);
+		p3 = makeHullPoint(-1, -1,  3);
 		ret =  @:privateAccess HullCollision.dist3D([p0, p1, p2, p3]);
 		Check.array([p0, p1, p2, p3], ret.simp);
 		Check.floatArray([1/4, 1/4, 1/4, 1/4], ret.barCoords);
-		Check.point(0,0,0, ret.point());
+		Check.point(0,0,0, ret.point().point);
 
 		// Test against face
-		p0 = new Point(1, -1, -1);
-		p1 = new Point(1, -1,  2);
-		p2 = new Point(1,  2, -1);
-		p3 = new Point(2,  3,  4);
+		p0 = makeHullPoint(1, -1, -1);
+		p1 = makeHullPoint(1, -1,  2);
+		p2 = makeHullPoint(1,  2, -1);
+		p3 = makeHullPoint(2,  3,  4);
 		ret =  @:privateAccess HullCollision.dist3D([p0, p1, p2, p3]);
 		Check.array([p0, p1, p2], ret.simp);
 		Check.floatArray([1/3, 1/3, 1/3], ret.barCoords);
-		Check.point(1,0,0, ret.point());
+		Check.point(1,0,0, ret.point().point);
 
 		// Test against face (degenerate)
-		p0 = new Point(1, -1, -1);
-		p1 = new Point(1, -1,  2);
-		p2 = new Point(1,  2, -1);
-		p3 = new Point(1,  2, -1);
+		p0 = makeHullPoint(1, -1, -1);
+		p1 = makeHullPoint(1, -1,  2);
+		p2 = makeHullPoint(1,  2, -1);
+		p3 = makeHullPoint(1,  2, -1);
 		ret =  @:privateAccess HullCollision.dist3D([p0, p1, p2, p3]);
 		Check.arrayOptions([p0,p1,[p2,p3]], ret.simp);
 		Check.floatArray([1/3, 1/3, 1/3], ret.barCoords);
-		Check.point(1,0,0, ret.point());
+		Check.point(1,0,0, ret.point().point);
 
 		// Test against line (degenerate)
-		p0 = new Point(1, 0, 1);
-		p1 = new Point(1, 0, 1);
-		p2 = new Point(1, 1, 0);
-		p3 = new Point(1, 1, 0);
+		p0 = makeHullPoint(1, 0, 1);
+		p1 = makeHullPoint(1, 0, 1);
+		p2 = makeHullPoint(1, 1, 0);
+		p3 = makeHullPoint(1, 1, 0);
 		ret =  @:privateAccess HullCollision.dist3D([p0, p1, p2, p3]);
 		Check.arrayOptions([[p0,p1],[p2,p3]], ret.simp);
 		Check.floatArray([0.5,0.5], ret.barCoords);
-		Check.point(1,0.5,0.5, ret.point());
+		Check.point(1,0.5,0.5, ret.point().point);
 
 		// Test against point (degenerate)
-		p0 = new Point(1, 1, 1);
-		p1 = new Point(1, 1, 1);
-		p2 = new Point(1, 1, 1);
-		p3 = new Point(1, 1, 1);
+		p0 = makeHullPoint(1, 1, 1);
+		p1 = makeHullPoint(1, 1, 1);
+		p2 = makeHullPoint(1, 1, 1);
+		p3 = makeHullPoint(1, 1, 1);
 		ret =  @:privateAccess HullCollision.dist3D([p0, p1, p2, p3]);
 		Check.arrayOptions([[p0,p1,p2,p3]], ret.simp);
 		Check.floatArray([1], ret.barCoords);
-		Check.point(1,1,1, ret.point());
+		Check.point(1,1,1, ret.point().point);
 
 	}
 
@@ -397,7 +402,7 @@ class CollisionTest extends utest.Test {
 		numTests = 0;
 
 		// Generate random collisions
-		while(numTests < 500) {
+		while(numTests < 50) {
 			var p0 = getRandPt(-5,5);
 			var p1 = getRandPt(-5,5);
 

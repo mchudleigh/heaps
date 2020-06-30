@@ -1,5 +1,6 @@
 package h3d.col;
 
+import h3d.scene.fwd.PointLight;
 import hxd.Debug;
 
 import h3d.col.Point;
@@ -11,17 +12,25 @@ import h3d.col.Point;
 
 // Simple tuple like class to contain results from the dist*D functions
 class DistRes {
-	public var simp: Array<Point>;
+	public var simp: Array<HullColPoint>;
 	public var barCoords: Array<Float>;
-	public inline function new(s: Array<Point>, b: Array<Float>) {
+	public inline function new(s: Array<HullColPoint>, b: Array<Float>) {
 		simp = s;
 		barCoords = b;
 	}
-	public function point(): Point {
-		var ret = new Point();
+	public function point(): HullColPoint {
+		var resA = new Point();
+		var resB = new Point();
+		var resPoint = new Point();
 		for (i in 0...simp.length) {
-			ret = ret.add(simp[i].multiply(barCoords[i]));
+			resA = resA.add(simp[i].srcA.multiply(barCoords[i]));
+			resB = resB.add(simp[i].srcB.multiply(barCoords[i]));
+			resPoint = resPoint.add(simp[i].point.multiply(barCoords[i]));
 		}
+		var ret = new HullColPoint(resA, resB);
+		Debug.assert(Debug.floatNear(ret.point.x, resPoint.x));
+		Debug.assert(Debug.floatNear(ret.point.y, resPoint.y));
+		Debug.assert(Debug.floatNear(ret.point.z, resPoint.z));
 		return ret;
 	}
 }
@@ -35,12 +44,15 @@ class CachedColRes {
 
 class ColRes {
 	public var collides: Bool;
-	// Vec is the distance vector if no collision
-	// or the penetration vector if collision
+	// vec is the distance/penetration vector
 	public var vec: Point;
-	public function new(c,v) {
+	// point is the closest point to the origin of the Minkowski hull
+	// or the penetration vector if collision
+	public var point: Null<HullColPoint>;
+	public function new(c,v,p) {
 		collides = c;
 		vec = v;
+		point = p;
 	}
 }
 
@@ -75,14 +87,15 @@ class HullCollision {
 			s1 = c1.startPoint();
 		}
 
-		var v = s0.sub(s1); // Point in simplex closest to origin. Updated every iteration
-		var simp = [];
+		var hcV = new HullColPoint(s0, s1); // Point in simplex closest to origin. Updated every iteration
+		var v = hcV.point;
+		var simp: Array<HullColPoint> = [];
 		var sup0 = new Point();
 		var sup1 = new Point();
 		var vLenSq = 0.0;
 		var maxSimpLnSq = 0.0;
 		loopCount = 0;
-		var p: Point = null;
+		var p: HullColPoint = null;
 		var pDotV = 0.0;
 		var vLenMinPDotV = 0.0;
 		var relSqVLenSq = 0.0;
@@ -92,28 +105,28 @@ class HullCollision {
 			c0.support(-v.x, -v.y, -v.z, sup0);
 			c1.support( v.x,  v.y,  v.z, sup1);
 
-			p = sup0.sub(sup1);
+			p = new HullColPoint(sup0, sup1);
 
 			vLenSq = v.lengthSq();
 
-			pDotV = p.dot(v);
+			pDotV = p.point.dot(v);
 			if (!precise && pDotV > 1000*tol) {
 				// Fast, but imprecise no-collision condition
-				return new ColRes(false, v);
+				return new ColRes(false, v, hcV);
 			}
 			vLenMinPDotV = vLenSq-pDotV;
 			relSqVLenSq = REL*REL*vLenSq;
 			if (	vLenSq > 0.000000001 &&
 					vLenMinPDotV < relSqVLenSq) {
 				// More precise no-collision condition
-				return new ColRes(false, v);
+				return new ColRes(false, v, hcV);
 			}
 			// Check if p is already in the simplex
 			for (sp in simp) {
-				var d = p.sub(sp).length();
+				var d = p.point.sub(sp.point).length();
 				if (vLenSq > 0.000000001 && d < tol) {
 					// This point is in the simplex
-					return new ColRes(false, v);
+					return new ColRes(false, v, hcV);
 				}
 			}
 
@@ -128,7 +141,7 @@ class HullCollision {
 			}
 			maxSimpLnSq = 0.0;
 			for (sp in simp) {
-				maxSimpLnSq = Math.max(maxSimpLnSq, sp.lengthSq());
+				maxSimpLnSq = Math.max(maxSimpLnSq, sp.point.lengthSq());
 			}
 			if (vLenSq < tol*maxSimpLnSq) {
 				// point V is _really_ close to the origin (relative to
@@ -136,20 +149,21 @@ class HullCollision {
 				break;
 			}
 			var lastV = v;
-			v = distRes.point();
+			hcV = distRes.point();
+			v = hcV.point;
 			vDiff.setSub(lastV, v);
 			vDiffAccum = vDiff.lengthSq() + vDiffAccum * 0.5;
 			if (vDiffAccum < tol){
 				// This has settled without triggering the other
 				// termination conditions
-				return new ColRes(false, v);
+				return new ColRes(false, v, hcV);
 			}
 
 			loopCount++;
 		}
 
 		if (!precise) {
-			return new ColRes(true, v); // Don't run EPA, assume V is good enough
+			return new ColRes(true, v, hcV); // Don't run EPA, assume V is good enough
 		}
 		// Collision, run EPA to find the penetration vector
 
@@ -163,11 +177,11 @@ class HullCollision {
 		// var gjkP = gjkRes.point();
 
 		if (loopCount == MAX_LOOP) {
-			return new ColRes(false, v);
+			return new ColRes(false, v, hcV);
 		}
 
 		if (simp.length == 1) {
-			return new ColRes(true, v);
+			return new ColRes(true, v, hcV);
 		}
 
 		// Add support points until the simplex has 4 points
@@ -179,10 +193,10 @@ class HullCollision {
 			switch (simp.length) {
 				case 2: {
 					// Get support points from the 4 normal dirs to the edge
-					var dir = simp[1].sub(simp[0]);
+					var dir = simp[1].point.sub(simp[0].point);
 					if (dir.length() < tol) {
 						// It's basically the same point, call it a collision
-						return new ColRes(true, simp[0]);
+						return new ColRes(true, simp[0].point, simp[0]);
 					}
 					var t = new Point(1,1,1);
 					var n0 = dir.cross(t);
@@ -197,42 +211,22 @@ class HullCollision {
 
 					c0.support( n0.x, n0.y, n0.z, sup0);
 					c1.support(-n0.x,-n0.y,-n0.z, sup1);
-					var p0 = sup0.sub(sup1);
+					var p0 = new HullColPoint(sup0, sup1);
 					c0.support(-n0.x,-n0.y,-n0.z, sup0);
 					c1.support( n0.x, n0.y, n0.z, sup1);
-					var p1 = sup0.sub(sup1);
+					var p1 = new HullColPoint(sup0, sup1);
 
 					c0.support( n1.x, n1.y, n1.z, sup0);
 					c1.support(-n1.x,-n1.y,-n1.z, sup1);
-					var p2 = sup0.sub(sup1);
+					var p2 = new HullColPoint(sup0, sup1);
 					c0.support(-n1.x,-n1.y,-n1.z, sup0);
 					c1.support( n1.x, n1.y, n1.z, sup1);
-					var p3 = sup0.sub(sup1);
+					var p3 = new HullColPoint(sup0, sup1);
 
-					var p0DotN = p0.dot(n0);
-					var p1DotN = p1.dot(n0) * -1.0;
-					var p2DotN = p2.dot(n1);
-					var p3DotN = p3.dot(n1) * -1.0;
-					if (p0DotN < tol) {
-						// We are genuinely on the surface
-						n0.scale(p0DotN);
-						return new ColRes(true, n0);
-					}
-					if (p1DotN < tol) {
-						// We are genuinely on the surface
-						n0.scale(-1.0*p1DotN);
-						return new ColRes(true, n0);
-					}
-					if (p2DotN < tol) {
-						// We are genuinely on the surface
-						n1.scale(p2DotN);
-						return new ColRes(true, n1);
-					}
-					if (p3DotN < tol) {
-						// We are genuinely on the surface
-						n1.scale(-1.0*p3DotN);
-						return new ColRes(true, n1);
-					}
+					var p0DotN = p0.point.dot(n0);
+					var p1DotN = p1.point.dot(n0) * -1.0;
+					var p2DotN = p2.point.dot(n1);
+					var p3DotN = p3.point.dot(n1) * -1.0;
 					// Otherwise add the furthest point and loop
 					if (p0DotN > p1DotN && p0DotN > p2DotN && p0DotN > p3DotN)
 						simp.push(p0);
@@ -246,8 +240,8 @@ class HullCollision {
 				case 3: {
 					// project a ray in both normals to the simplex
 					// keep the point furthest out
-					var v0 = simp[1].sub(simp[0]);
-					var v1 = simp[2].sub(simp[0]);
+					var v0 = simp[1].point.sub(simp[0].point);
+					var v1 = simp[2].point.sub(simp[0].point);
 					var n = v0.cross(v1);
 					if (n.lengthSq() < 0.0000000001) {
 						// Colinear, drop a point and return to the 2-simplex case
@@ -259,26 +253,14 @@ class HullCollision {
 					n.normalize();
 					c0.support( n.x, n.y, n.z, sup0);
 					c1.support(-n.x,-n.y,-n.z, sup1);
-					var p0 = sup0.sub(sup1);
+					var p0 = new HullColPoint(sup0, sup1);
 
 					c0.support(-n.x,-n.y,-n.z, sup0);
 					c1.support( n.x, n.y, n.z, sup1);
-					var p1 = sup0.sub(sup1);
+					var p1 = new HullColPoint(sup0, sup1);
 
-					var p0DotN = n.dot(p0);
-					if (p0DotN < tol) {
-						// We are genuinely on the surface
-						n.scale(p0DotN);
-						return new ColRes(true, n);
-					}
-					var p1DotN = n.dot(p1) * -1.0;
-					if (p1DotN < tol) {
-						// We are genuinely on the surface
-						n.scale(-1.0*p1DotN);
-						return new ColRes(true, n);
-					}
 					// Include the point that contains the origin the best
-					var posN = simp[0].dot(n);
+					var posN = simp[0].point.dot(n);
 					simp.push((posN > 0) ? p1: p0);
 				}
 				default: throw "impossible";
@@ -289,10 +271,10 @@ class HullCollision {
 		try {
 			var penVect = EPA.run(simp, c0, c1);
 			loopCount += EPA.getLastLoops();
-			return new ColRes(true, penVect);
+			return new ColRes(true, penVect.point, penVect);
 		} catch(err:Dynamic) {
 			// Treat as a glancing collision
-			return new ColRes(true, new Point(0,0,0));
+			return new ColRes(true, new Point(0,0,0), null);
 		}
 	}
 
@@ -301,7 +283,7 @@ class HullCollision {
 		return ((v0>0 && v1>0.00000001) || (v0<0 && v1<-0.00000001));
 	}
 
-	static function dist(simp:Array<Point>): DistRes {
+	static function dist(simp:Array<HullColPoint>): DistRes {
 		switch(simp.length) {
 			case 4: return dist3D(simp);
 			case 3: return dist2D(simp);
@@ -313,12 +295,12 @@ class HullCollision {
 
 
 	// Equivalent to S3D in the paper
-	static function dist3D( simp: Array<Point>): DistRes {
+	static function dist3D( simp: Array<HullColPoint>): DistRes {
 		Debug.assert(simp.length == 4);
-		var p0 = simp[0];
-		var p1 = simp[1];
-		var p2 = simp[2];
-		var p3 = simp[3];
+		var p0 = simp[0].point;
+		var p1 = simp[1].point;
+		var p2 = simp[2].point;
+		var p3 = simp[3].point;
 
 		// Find the 4 cofactors
 		// IE: the volume of the 4 tetrahedra with one point replaced by the origin
@@ -343,14 +325,14 @@ class HullCollision {
 			// forcing comparison of all sub-simplices
 			if (compSigns(cs[i], vol)) continue;
 			var subSimp = switch(i) {
-				case 0: [p1, p2, p3];
-				case 1: [p0, p2, p3];
-				case 2: [p0, p1, p3];
-				case 3: [p0, p1, p2];
+				case 0: [simp[1], simp[2], simp[3]];
+				case 1: [simp[0], simp[2], simp[3]];
+				case 2: [simp[0], simp[1], simp[3]];
+				case 3: [simp[0], simp[1], simp[2]];
 				default: throw "Impossible";
 			}
 			var subRet = dist2D(subSimp);
-			var d = subRet.point().lengthSq();
+			var d = subRet.point().point.lengthSq();
 			if (d < bestDist) {
 				bestDist = d;
 				bestRet = i;
@@ -362,11 +344,11 @@ class HullCollision {
 
 	// Equivalent to S2D in the paper
 	// Note: this is public because it's used by EPA
-	public static function dist2D( simp: Array<Point>): DistRes {
+	public static function dist2D( simp: Array<HullColPoint>): DistRes {
 		Debug.assert(simp.length == 3);
-		var p0 = simp[0];
-		var p1 = simp[1];
-		var p2 = simp[2];
+		var p0 = simp[0].point;
+		var p1 = simp[1].point;
+		var p2 = simp[2].point;
 		var n = (p1.sub(p0)).cross(p2.sub(p0));
 		n.normalize();
 		var pOrig = n.multiply(p0.dot(n));
@@ -427,13 +409,13 @@ class HullCollision {
 			// forcing comparison of all sub-simplices
 			if (compSigns(cs[i], area)) continue;
 			var subSimp = switch(i) {
-				case 0: [p1, p2];
-				case 1: [p0, p2];
-				case 2: [p0, p1];
+				case 0: [simp[1], simp[2]];
+				case 1: [simp[0], simp[2]];
+				case 2: [simp[0], simp[1]];
 				default: throw "Impossible";
 			}
 			var subRet = dist1D(subSimp);
-			var d = subRet.point().lengthSq();
+			var d = subRet.point().point.lengthSq();
 			if (d < bestDist) {
 				bestDist = d;
 				bestRet = i;
@@ -444,10 +426,10 @@ class HullCollision {
 	}
 
 	// Equivalent to S1D in the paper
-	static function dist1D( simp: Array<Point>): DistRes {
+	static function dist1D( simp: Array<HullColPoint>): DistRes {
 		Debug.assert(simp.length == 2);
-		var p0 = simp[0];
-		var p1 = simp[1];
+		var p0 = simp[0].point;
+		var p1 = simp[1].point;
 		var dir = p0.sub(p1);
 		dir.normalize();
 		var projOrig = dir.multiply(p1.dot(dir));
@@ -472,7 +454,7 @@ class HullCollision {
 			return new DistRes(simp, [c0/len, c1/len]);
 		} else {
 			// Return the closest point
-			var p = (p0.lengthSq() <= p1.lengthSq()) ? p0:p1;
+			var p = (p0.lengthSq() <= p1.lengthSq()) ? simp[0]:simp[1];
 			return new DistRes([p], [1]);
 		}
 	}

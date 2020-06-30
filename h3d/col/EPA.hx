@@ -16,9 +16,10 @@ class EPA implements h3d.col.ExpHullUser {
 	var col0: ConvexCollider;
 	var col1: ConvexCollider;
 	var points: Array<Point>;
+	var hcPoints: Array<HullColPoint>;
 
-	var tempFacePoints: Array<Point>;
-	var facePoints: Array<Point>;
+	var tempFacePoints: Array<HullColPoint>;
+	var facePoints: Array<HullColPoint>;
 
 	// Temporaries
 	var sup0:Point = new Point();
@@ -27,8 +28,9 @@ class EPA implements h3d.col.ExpHullUser {
 	static var lastLoops = 0;
 	var numLoops = 0;
 
-	public function new(startSimp: Array<Point>, col0: ConvexCollider, col1: ConvexCollider) {
-		this.points = startSimp.copy();
+	public function new(startSimp: Array<HullColPoint>, col0: ConvexCollider, col1: ConvexCollider) {
+		this.hcPoints = startSimp.copy();
+		this.points = [for (p in startSimp) p.point];
 		this.col0 = col0;
 		this.col1 = col1;
 		this.facePoints = [];
@@ -56,7 +58,7 @@ class EPA implements h3d.col.ExpHullUser {
 		for (i in 0...newFaces.length) {
 			// Find the point closest to the origin of this face
 			var f = newFaces[i];
-			var simp = [points[f.verts[0]], points[f.verts[1]], points[f.verts[2]]];
+			var simp = [hcPoints[f.verts[0]], hcPoints[f.verts[1]], hcPoints[f.verts[2]]];
 			var res = HullCollision.dist2D(simp);
 
 			var v = res.point();
@@ -66,13 +68,14 @@ class EPA implements h3d.col.ExpHullUser {
 
 			col0.support( n.x,  n.y,  n.z, sup0);
 			col1.support(-n.x, -n.y, -n.z, sup1);
-			var p = sup0.sub(sup1);
+			var p = new HullColPoint(sup0, sup1);
 			var pInd = points.length;
-			points.push(p);
+			hcPoints.push(p);
+			points.push(p.point);
 
 			var pDist = f.dist(pInd);
 
-			ret.push(new NewFaceRes(v.length(), pInd, pDist < THRESH));
+			ret.push(new NewFaceRes(v.point.length(), pInd, pDist < THRESH));
 			var res2 = HullCollision.dist2D(simp);
 		}
 
@@ -94,7 +97,7 @@ class EPA implements h3d.col.ExpHullUser {
 			numLoops++;
 		}
 	}
-	function getRes():Point {
+	function getRes(): HullColPoint {
 		var bestFace = expHull.peekNext();
 		return facePoints[bestFace.ind];
 	}
@@ -102,7 +105,7 @@ class EPA implements h3d.col.ExpHullUser {
 	public static function getLastLoops() {
 		return lastLoops;
 	}
-	public static function run(startSimp: Array<Point>, col0: ConvexCollider, col1: ConvexCollider):Point {
+	public static function run(startSimp: Array<HullColPoint>, col0: ConvexCollider, col1: ConvexCollider):HullColPoint {
 		var epa = new EPA(startSimp, col0, col1);
 		epa.mainLoop();
 		lastLoops = epa.numLoops;

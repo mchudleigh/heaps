@@ -6,4 +6,8 @@ class Debug {
             throw (message != null) ? message : "assert failed";
         }
     }
+
+	public static function floatNear(a: Float, b: Float, eps = 0.000001) {
+		return Math.abs(a-b) < eps;
+	}
 }
