@@ -1,5 +1,7 @@
 package h3d.phys;
 
+import hxd.Debug;
+
 import h3d.Quat;
 import h3d.col.Point;
 import h3d.col.ConvexHull;
@@ -122,12 +124,25 @@ class HullPhysics {
 		moi.scale(density, density, density);
 
 		// QR decompose the MOI into its principal axies
+		var prinMoI = new Vector();
+		var prinRot = new Matrix();
+		MatrixTools.symmetricEigenQR(moi, prinMoI, prinRot);
 
+		// Test rotation matrix
+		var det = prinRot.getDeterminant();
+		if (det < 0) {
+			// This can not be represented by a rotation, flip an axis
+			prinRot.scale(-1, 1, 1);
+		}
 
+		var rotQuat = new Quat();
+		rotQuat.initRotateMatrix(prinRot);
 
 		ret.mass = com.vol*density;
 		ret.com = com.com.clone();
 		ret.moi = moi;
+		ret.principalMOI = prinMoI.toPoint();
+		ret.principalRot = rotQuat;
 
 		return ret;
 	}

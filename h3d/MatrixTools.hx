@@ -53,6 +53,13 @@ class MatrixTools {
 
 	// Perform a 3x3 QR decomp  of 'm' into the provided 'output' parameters
 	public static function qr(m:Matrix, qOut:Matrix, rOut: Matrix) {
+		if (m._12 == 0 && m._13 == 0 && m._23 == 0) {
+			// This is already upper triangular
+			rOut.load(m);
+			qOut.identity();
+			return;
+		}
+
 		var cols = getColumns(m);
 
 		var alpha0 = cols[0].length();
@@ -62,9 +69,11 @@ class MatrixTools {
 		else
 			v0.x += alpha0;
 
-		v0.normalize();
-		var q0 = new Matrix();
-		hhRef3(v0, q0);
+		var q0 = Matrix.I();
+		if (v0.lengthSq() != 0) {
+			v0.normalize();
+			hhRef3(v0, q0);
+		}
 
 		var r0 = new Matrix();
 		r0.multCols(q0, m);
@@ -77,14 +86,19 @@ class MatrixTools {
 		else
 			v1y += alpha1;
 		var v1Len = Math.sqrt(v1y*v1y+v1z*v1z);
-		v1y = v1y/v1Len;
-		v1z = v1z/v1Len;
 		// Hand roll a 2x2 householder matrix
+
 		var q1 = Matrix.I();
-		q1._22 -= 2*v1y*v1y;
-		q1._23 -= 2*v1y*v1z;
-		q1._32 -= 2*v1y*v1z;
-		q1._33 -= 2*v1z*v1z;
+		if (v1Len != 0) {
+			v1y = v1y/v1Len;
+			v1z = v1z/v1Len;
+			q1._22 -= 2*v1y*v1y;
+			q1._23 -= 2*v1y*v1z;
+			q1._32 -= 2*v1y*v1z;
+			q1._33 -= 2*v1z*v1z;
+		} else {
+			Debug.assert(v1z == 0);
+		}
 
 		var r1 = new Matrix();
 		r1.multCols(q1, r0);

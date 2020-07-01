@@ -11,6 +11,7 @@ class BodyProps {
 
 	// Center of Mass
 	public var com: Point;
+	// Moment of inertia matrix about CoM (in local coords)
 	public var moi: Matrix;
 
 	// The moment of inertia about the CoM on the principal axis

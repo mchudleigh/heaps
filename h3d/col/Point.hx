@@ -154,4 +154,8 @@ class Point {
 		this.y = p0.y - p1.y;
 		this.z = p0.z - p1.z;
 	}
+
+	public function toArray(): Array<Float> {
+		return [x,y,z];
+	}
 }
