@@ -150,16 +150,60 @@ class PhysicsTest extends utest.Test {
 		var props = HullPhysics.calcProperties(rotRect, 1.0);
 
 		var princAxes = MatrixTools.getColumns(props.principalRot.toMatrix());
-		// Check that the principal axes are eigen vectors of the MoI
 
+		// Check that the principal axes are eigen vectors of the MoI
 		var pMOI = props.principalMOI.toArray();
 		for (i in 0...3) {
 			var testV = princAxes[i].clone();
+			Assert.floatEquals(1.0, testV.length());
 			testV.transform(props.moi);
 			var testVLen = testV.length();
 			Assert.floatEquals(Math.abs(pMOI[i]), testVLen);
 			Assert.floatEquals(pMOI[i], testV.dot3(princAxes[i]));
 		}
+	}
 
+	function testMergeBody() {
+		// Testing merging two rigid bodies into a single one
+
+		var rot1 = new Quat();
+		rot1.initRotateAxis(0.0, 1.0, 0.0, -Math.PI/4.0);
+		var rot1Mat = rot1.toMatrix();
+
+		var rectPts0 =
+		[for (i in 0...8) new Point(
+			(i&1 != 0) ? -1.0 : 1.0,
+			(i&2 != 0) ? -3.0 : 3.0,
+			(i&4 != 0) ? -2.0 : 2.0)
+		];
+
+		var rectPts1 =
+		[for (i in 0...8) new Point(
+			(i&1 != 0) ? -2.0 : 2.0,
+			(i&2 != 0) ? -3.0 : 3.0,
+			(i&4 != 0) ?  0.0 : 2.0)
+		];
+		for ( p in rectPts1) {
+			p.transform(rot1Mat);
+		}
+		var hull0 = HullBuilder.buildHull(rectPts0);
+		var hull1 = HullBuilder.buildHull(rectPts1);
+		var props0 = HullPhysics.calcProperties(hull0, 1.0);
+		var props1 = HullPhysics.calcProperties(hull1, 1.0);
+
+		var trans0 = TRSTrans.fromTrans(new Vector(1.0, 0.0, 0.0));
+		var trans1 = TRSTrans.fromRot(rot1);
+
+		var mergedProps = HullPhysics.mergeBodies(props0, trans0, props1, trans1);
+
+		// Merged props should have the properties of a 4x6x4 rectangular prism at the origin
+		Assert.floatEquals(96, mergedProps.mass);
+		Check.point(0,0,0, mergedProps.com);
+
+		var mergedMoIxz = 96*(16+36)/12;
+		var mergedMoIy = 96*(16+16)/12;
+		Assert.floatEquals(mergedMoIxz, mergedProps.moi._11);
+		Assert.floatEquals(mergedMoIy, mergedProps.moi._22);
+		Assert.floatEquals(mergedMoIxz, mergedProps.moi._33);
 	}
 }

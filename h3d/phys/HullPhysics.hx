@@ -46,7 +46,7 @@ class HullPhysics {
 		}
 
 		var moiAccum = new Matrix();
-		moiAccum.zero(); moiAccum._44 = 1.0;
+		moiAccum.zero();
 
 		for (fInd in 0...Std.int(hull.faces.length/3)) {
 			var op0 = hull.points[hull.faces[fInd*3 + 0]].toPoint();
@@ -115,6 +115,22 @@ class HullPhysics {
 		return { com: comAccum, vol: volAccum, faceVols: faceVols };
 	}
 
+	static function calcPrincipalMoI(moi: Matrix, propsOut: BodyProps) {
+		var prinMoI = new Vector();
+		var prinRot = new Matrix();
+		MatrixTools.symmetricEigenQR(moi, prinMoI, prinRot);
+
+		var det = prinRot.getDeterminant();
+		if (det < 0) {
+			// This can not be represented by a rotation, flip an axis
+			prinRot.scale(-1, 1, 1);
+		}
+		propsOut.principalRot = new Quat();
+		propsOut.principalRot.initRotateMatrix(prinRot);
+
+		propsOut.principalMOI = prinMoI.toPoint();
+	}
+
 	public static function calcProperties(hull: ConvexHull, density: Float): BodyProps {
 
 		var ret = new BodyProps();
@@ -123,29 +139,78 @@ class HullPhysics {
 		var moi = calcMoI(hull, com.com, com.faceVols);
 		moi.scale(density, density, density);
 
-		// QR decompose the MOI into its principal axies
-		var prinMoI = new Vector();
-		var prinRot = new Matrix();
-		MatrixTools.symmetricEigenQR(moi, prinMoI, prinRot);
-
-		// Test rotation matrix
-		var det = prinRot.getDeterminant();
-		if (det < 0) {
-			// This can not be represented by a rotation, flip an axis
-			prinRot.scale(-1, 1, 1);
-		}
-
-		var rotQuat = new Quat();
-		rotQuat.initRotateMatrix(prinRot);
-
 		ret.mass = com.vol*density;
 		ret.com = com.com.clone();
 		ret.moi = moi;
-		ret.principalMOI = prinMoI.toPoint();
-		ret.principalRot = rotQuat;
+
+		calcPrincipalMoI(moi, ret);
 
 		return ret;
 	}
 
+	// Offset a MoI matrix according to the parallel axis theorem
+	static function getOffsetMoI(moi: Matrix, mass:Float, offset: Point): Matrix {
+		var rSq = offset.lengthSq();
+		var ret = new Matrix();
+		ret._11 = rSq; ret._22 = rSq; ret._33 = rSq;
+		var op = offset.outer(offset);
+		op.multiplyValue(-1);
+		ret.add(op);
+		ret.multiplyValue(mass);
+		ret.add(moi);
+
+		return ret;
+
+	}
+
+	// Merge the properties of two rigid bodies into a single body
+	// aTrans and bTrans are transforms into the shared space
+	public static function mergeBodies(a: BodyProps, aTrans: TRSTrans, b: BodyProps, bTrans: TRSTrans): BodyProps {
+
+		var newMass = a.mass + b.mass;
+
+		var aMat = aTrans.toMatrix();
+		var aMatInv = aTrans.inverse().toMatrix();
+		var bMat = bTrans.toMatrix();
+		var bMatInv = bTrans.inverse().toMatrix();
+
+		var aCoM = a.com.clone();
+		aCoM.transform(aMat);
+		var aTemp = aCoM.clone();
+		aTemp.scale(a.mass);
+
+		var bCoM = b.com.clone();
+		bCoM.transform(bMat);
+		var bTemp = bCoM.clone();
+		bTemp.scale(b.mass);
+
+		var newCoM = aTemp.add(bTemp);
+		newCoM.scale(1.0/newMass);
+
+		var aOffset = aCoM.sub(newCoM);
+		var bOffset = bCoM.sub(newCoM);
+
+		var aMoI = a.moi.clone();
+		aMoI.multCols(aMat, aMoI);
+		aMoI.multCols(aMoI, aMatInv);
+
+		var bMoI = b.moi.clone();
+		bMoI.multCols(bMat, bMoI);
+		bMoI.multCols(bMoI, bMatInv);
+
+		// Offset the MoI to new CoM by parallel axis theorem
+		aMoI = getOffsetMoI(aMoI, a.mass, aOffset);
+		bMoI = getOffsetMoI(bMoI, b.mass, bOffset);
+
+		var newMoI = aMoI.clone();
+		newMoI.add(bMoI);
+
+		var ret = new BodyProps();
+		ret.mass = newMass;
+		ret.com = newCoM;
+		ret.moi = newMoI;
+		calcPrincipalMoI(newMoI, ret);
+		return ret;
+	}
 
 }

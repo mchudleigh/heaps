@@ -352,6 +352,25 @@ class Matrix {
 		return ret;
 	}
 
+	public function add(m: Matrix) {
+		_11 += m._11;
+		_12 += m._12;
+		_13 += m._13;
+		_14 += m._14;
+		_21 += m._21;
+		_22 += m._22;
+		_23 += m._23;
+		_24 += m._24;
+		_31 += m._31;
+		_32 += m._32;
+		_33 += m._33;
+		_34 += m._34;
+		_41 += m._41;
+		_42 += m._42;
+		_43 += m._43;
+		_44 += m._44;
+	}
+
 	public function multiplyValue( v : Float ) {
 		_11 *= v;
 		_12 *= v;

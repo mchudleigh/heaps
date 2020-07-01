@@ -158,4 +158,22 @@ class Point {
 	public function toArray(): Array<Float> {
 		return [x,y,z];
 	}
+	// Return the 3x3 matrix of the output product of this and p (as a column major matrix)
+	public function outer(p: Point): Matrix {
+		var ret = new Matrix();
+		ret._11 = p.x*x;
+		ret._12 = p.x*y;
+		ret._13 = p.x*z;
+
+		ret._21 = p.y*x;
+		ret._22 = p.y*y;
+		ret._23 = p.y*z;
+
+		ret._31 = p.z*x;
+		ret._32 = p.z*y;
+		ret._13 = p.z*z;
+
+		return ret;
+	}
+
 }
