@@ -9,11 +9,7 @@ class Body {
 	public var shape: ConvexCollider;
 	public var props: BodyProps;
 
-	// This is the transform from shape space into body space
-	// which is centered at the CoM and aligned with the principal axis
-	public var principalTrans: TRSTrans;
-
-	// The transform from (principal) body space to world space
+	// The transform body space to world space
 	public var trans: TRSTrans;
 
 	public var velocity: Vector;
@@ -22,4 +18,20 @@ class Body {
 	public var stationary: Bool;
 
 	public function new() {}
+
+	public function setTrans(t: TRSTrans) {
+		trans = t;
+	}
+
+	public function getTrans(): TRSTrans {
+		return trans;
+	}
+	public function setAngularVel(av: Vector) {
+		angularVel.load(av);
+		angularVel.w = 0;
+	}
+	public function setVelocity(vel: Vector) {
+		velocity.load(vel);
+		velocity.w = 0;
+	}
 }

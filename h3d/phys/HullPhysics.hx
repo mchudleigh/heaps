@@ -128,6 +128,10 @@ class HullPhysics {
 		propsOut.principalRot = new Quat();
 		propsOut.principalRot.initRotateMatrix(prinRot);
 
+		propsOut.princRotMat = prinRot;
+		propsOut.invPrincRotMat = prinRot.clone();
+		propsOut.invPrincRotMat.transpose();
+
 		propsOut.principalMOI = prinMoI.toPoint();
 	}
 

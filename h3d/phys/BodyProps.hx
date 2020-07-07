@@ -19,6 +19,9 @@ class BodyProps {
 	// The rotation for local coords to principal axis
 	public var principalRot: Quat;
 
+	public var princRotMat: Matrix;
+	public var invPrincRotMat: Matrix;
+
 	public function new() {}
 }
 
