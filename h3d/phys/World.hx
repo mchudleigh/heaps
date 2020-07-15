@@ -1,5 +1,7 @@
 package h3d.phys;
 
+import h3d.col.ConvexCollider;
+import h3d.col.HullCollision;
 import h3d.TRSTrans;
 
 import h3d.col.ColBuilder;
@@ -9,9 +11,13 @@ import h3d.col.ConvexHull;
 class World {
 
 	var bodies: Array<Body>;
+	var constraints: Array<Constraint>;
+	var coll: HullCollision;
 
 	public function new() {
 		bodies = [];
+		constraints = [];
+		coll = new HullCollision();
 	}
 
 	public function addBody(body: Body) {
@@ -20,7 +26,7 @@ class World {
 	}
 
 
-	public function simulate(dt: Float) {
+	public function simulate(dt: Float, calcCollision: Bool) {
 		// This simulation is based on a Velocity Verlet integrator
 		// where the velocity is technically a half time-step advanced.
 		// This requires a fixed time-step to be accurate
@@ -62,6 +68,22 @@ class World {
 			body.trans = TRSTrans.compound(incTrans, body.trans);
 		}
 
+		if (calcCollision) {
+			// Collide all pairs of bodies (O(N^2) for now but will be optimized)
+			// Collisions can spontaneously update velocity (but not position)
+			// but must attempt to conserve energy and momentum
+			for (i in 0...bodies.length) {
+				for (j in i...bodies.length) {
+					collide(bodies[i], bodies[j]);
+				}
+			}
+		}
+
+		// Update constraints
+		for (c in constraints) {
+			c.update(dt);
+		}
+
 		// Calculate forces and torques from updated positions
 		var forces = [];
 		var torques = [];
@@ -71,9 +93,16 @@ class World {
 				continue;
 			}
 
-			// TODO: calculate forces and torques here
-			forces.push(new Vector());
-			torques.push(new Vector());
+			var forceAccum = new Vector();
+			var torqueAccum = new Vector();
+			for (c in body.getConstraints()) {
+				var f = c.getForce(body);
+				forceAccum.incr(f);
+				var t = c.getTorque(body);
+				torqueAccum.incr(t);
+			}
+			forces.push(forceAccum);
+			torques.push(torqueAccum);
 		}
 
 		// Use forces and torques to update velocities
@@ -107,6 +136,54 @@ class World {
 		}
 	}
 
+	function collide(b0: Body, b1: Body) {
+
+		var b0Trans = b0.getTrans();
+		var b1Trans = b1.getTrans();
+		// Easy radius test
+		var rad = b0.radius*b0Trans.scale + b1.radius*b1Trans.scale;
+		var diff = b0Trans.trans.sub(b1Trans.trans);
+		if (diff.length() > rad) return; // No collision
+
+		// Otherwise build up the collider
+		var b0Col = ColBuilder.transform(b0.shape, b0Trans.toMatrix(), 42);
+		var b1Col = ColBuilder.transform(b1.shape, b1Trans.toMatrix(), 42);
+
+		var res = coll.testCollision(b0Col, b1Col, true);
+		if (!res.collides) return;
+
+		// Calculate collision reaction
+
+		// Check for collision against stationary objects
+		if (b0.stationary) {
+			oneBodyCollision(b1, res, false);
+			return;
+		}
+		if (b1.stationary) {
+			oneBodyCollision(b0, res, true);
+			return;
+		}
+
+		twoBodyCollision(b0, b1, res);
+	}
+
+	function oneBodyCollision(b: Body, colRes: ColRes, firstBody: Bool) {
+		var bodyPt, worldPt;
+		if (firstBody) {
+			bodyPt = colRes.point.srcA;
+			worldPt = colRes.point.srcB;
+		} else {
+			bodyPt = colRes.point.srcB;
+			worldPt = colRes.point.srcA;
+		}
+
+
+	}
+
+	function twoBodyCollision(b0: Body, b1: Body, colRes: ColRes) {
+
+	}
+
 	public static function hullToBody(hull: ConvexHull, bodyTrans: TRSTrans, density:Float = 1.0):Body {
 
 		// TODO: collider ID
@@ -115,6 +192,7 @@ class World {
 		var props = HullPhysics.calcProperties(hull, density);
 		var ret = new Body();
 
+		ret.radius = hull.radius;
 		ret.shape = shape;
 		ret.props = props;
 

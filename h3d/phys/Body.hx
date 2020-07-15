@@ -7,6 +7,7 @@ import h3d.col.ConvexCollider;
 class Body {
 
 	public var shape: ConvexCollider;
+	public var radius: Float;
 	public var props: BodyProps;
 
 	// The transform body space to world space
@@ -17,7 +18,11 @@ class Body {
 
 	public var stationary: Bool;
 
-	public function new() {}
+	var constraints: Array<Constraint>;
+
+	public function new() {
+		constraints = [];
+	}
 
 	public function setTrans(t: TRSTrans) {
 		trans = t;
@@ -29,9 +34,21 @@ class Body {
 	public function setAngularVel(av: Vector) {
 		angularVel.load(av);
 		angularVel.w = 0;
+
+//		angularVel.transform3x3(props.princRotMat);
 	}
 	public function setVelocity(vel: Vector) {
 		velocity.load(vel);
 		velocity.w = 0;
+	}
+
+	public function addConstraint(c: Constraint) {
+		constraints.push(c);
+	}
+	public function removeConstraint(c: Constraint) {
+		constraints.remove(c);
+	}
+	public function getConstraints(): Array<Constraint> {
+		return constraints;
 	}
 }
