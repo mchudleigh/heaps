@@ -1,14 +1,16 @@
 # Heaps
-_Heaps Data-oriented fork_
+_Heaps Feature Playground_
 
-This is a fork of the Heaps game engine. While the creators have huge amount of respect for the Heaps project, there are a few fundamental differences in design that are leading to this fork.
+This is a fork of the Heaps game engine and mostly used as a test bed for some advanced new features.
 
-This project will strive to be different than Heaps in the following ways:
-- Only support open specifications and open source tools (GLTF will be the primary 3D format)
-- Remove compatibility with some platforms (primarily Flash) and focus on Web and native desktop
-- Rework the rendering engine to be more compatible with next-gen APIs like Vulkan and WebGPU
-- Supoort new open formats like WebAssembly and WebGPU
-- Replace the Object-Oriented scene graph with a Data-Oriented system (specific design decisions TBD).
+The features being explored are:
+- GLTF integration
+- Arbitrary collision of convex objects
+- Rigid body dynamics
+- Anything I need to support the above, or otherwise interests me
+
+The project is mostly defunct at this point. Future work will be done on a new Haxe based 3D engine. However if anyone stumbles on this and is interested in trying to integrate this into
+mainline Heaps let me know.
 
 [Heaps Homepage](https://heaps.io)
 
